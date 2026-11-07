@@ -1,0 +1,82 @@
+import { SubmittedQuote, ContactMessage, CompanySettings } from '../types';
+
+export const companyInfo: CompanySettings = {
+  company_name: 'BARKA SOLUTIONS S.A.S',
+  legal_name: 'BARKA SOLUTIONS Société par Actions Simplifiée (S.A.S)',
+  tagline: 'Imprimerie & Multiservices',
+  slogan: "L'excellence maîtrisée",
+  city: 'Ngaoundéré',
+  country: 'Cameroun',
+  address: 'Derrière le Restaurant Le Verger, Ngaoundéré, Cameroun',
+  phone_primary: '+237 696 311 198',
+  phone_secondary: '+237 690 084 142',
+  email_primary: 'kouchoumichel@yahoo.fr',
+  email_secondary: 'direction@barkasolutions.org',
+  whatsapp: '+237 696 311 198',
+  whatsapp_raw: '237696311198',
+  website: '',
+  logo: '/logo.png',
+  opening_hours: {
+    weekday: '08h00 – 18h00',
+    saturday: '08h00 – 13h00',
+    sunday: 'Fermé (Permanence WhatsApp)',
+  },
+  social_links: {
+    whatsapp: 'https://wa.me/237696311198',
+    email: 'mailto:direction@barkasolutions.org',
+  },
+};
+
+export const quotesDb: SubmittedQuote[] = [
+  {
+    id: 'DEV-2026-001',
+    nom: 'Bouba',
+    prenom: 'Hamidou',
+    nomComplet: 'Hamidou Bouba',
+    entreprise: 'Coopérative Agro-Pastorale de Ngaoundéré',
+    telephone: '+237 699 12 34 56',
+    email: 'h.bouba@coop-agro.cm',
+    ville: 'Ngaoundéré',
+    typePrestation: 'carnets-autocopiants',
+    format: 'A4',
+    supportPapier: 'Dupli (50 feuillets autocopiants)',
+    quantite: 20,
+    finition: 'Numéroté + Souche Agrafée',
+    delai: 'Standard (3-5 jours)',
+    description: 'Facturiers 50 feuillets dupli numérotés de 001 à 1000 avec logo couleur en en-tête.',
+    estimatedPrice: 50000,
+    submittedAt: new Date(Date.now() - 3600000 * 24 * 2).toISOString(),
+    status: 'En cours',
+  },
+  {
+    id: 'DEV-2026-002',
+    nom: 'Bello',
+    prenom: 'Aminatou',
+    nomComplet: 'Dr. Aminatou Bello',
+    entreprise: 'Clinique Médicale Espoir',
+    telephone: '+237 677 88 99 00',
+    email: 'dr.bello@clinique-espoir.cm',
+    ville: 'Ngaoundéré',
+    typePrestation: 'carnets-sante',
+    format: 'A5',
+    supportPapier: 'Papier Satiné Couverture Vernie',
+    quantite: 200,
+    finition: 'Agrafé deux points',
+    delai: 'Express (24-48h)',
+    description: 'Carnets de santé pédiatriques personnalisés avec tableau vaccinal conforme MSP.',
+    estimatedPrice: 70000,
+    submittedAt: new Date(Date.now() - 3600000 * 8).toISOString(),
+    status: 'Nouveau',
+  },
+];
+
+export const contactMessagesDb: ContactMessage[] = [
+  {
+    id: 'MSG-001',
+    name: 'Sali Mohamadou',
+    emailOrPhone: '+237 690 11 22 33',
+    message: 'Bonjour, faites-vous également des enseignes lumineuses LED pour façades de magasins ?',
+    createdAt: new Date(Date.now() - 3600000 * 48).toISOString(),
+    read: true,
+  },
+];

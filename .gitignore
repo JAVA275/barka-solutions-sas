@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production outputs
+dist/
+dist-ssr/
+build/
+coverage/
+
+# Environment and sensitive data
+.env*
+!.env.example
+
+# Local databases and runtime stores
+server/data/store.json
+uploads/
+
+# Backups and temporary files
+backup-before-duplicate-cleanup/
+*.log
+.DS_Store
+Thumbs.db
+
+# Vercel and tool configurations
+.vercel/
+.system_generated/

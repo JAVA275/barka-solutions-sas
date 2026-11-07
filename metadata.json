@@ -1,0 +1,6 @@
+{
+  "name": "BARKA SOLUTIONS S.A.S",
+  "description": "Application officielle et plateforme de devis pour BARKA SOLUTIONS S.A.S : imprimerie numérique et offset, sérigraphie, grand format, signalétique, communication visuelle, conception graphique, branding, informatique, BTP, commerce général et prestations multiservices à Ngaoundéré, Cameroun.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
