@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { AdminLogin } from '../../components/AdminLogin';
-import { apiService, getStoredToken } from '../../services/api';
+import { apiService } from '../../services/api';
 import { AuthUser } from '../../types';
 
 export const AdminLoginPage: React.FC = () => {
@@ -14,15 +14,6 @@ export const AdminLoginPage: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
     const checkAuth = async () => {
-      const token = getStoredToken();
-      if (!token) {
-        if (isMounted) {
-          setCurrentUser(null);
-          setIsVerifying(false);
-        }
-        return;
-      }
-
       try {
         const res = await apiService.getCurrentUser();
         if (isMounted) {

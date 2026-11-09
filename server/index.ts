@@ -1,28 +1,9 @@
 import express, { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
-import cookieParser from 'cookie-parser';
-import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
-
+import { app } from './app';
 import { getJwtSecret } from './services/auth';
-import { authRouter } from './routes/auth';
-import { quotesRouter } from './routes/quotes';
-import { contactRouter } from './routes/contact';
-import { companyRouter, healthRouter } from './routes/company';
-import { statsRouter } from './routes/stats';
-import { portfolioRouter } from './routes/portfolio';
-import { servicesRouter } from './routes/services';
-import { pricesRouter } from './routes/prices';
-import { auditRouter } from './routes/audit';
-import { globalErrorHandler } from './middleware/errorHandler';
-import { PORTFOLIO_UPLOADS_DIR, initUploadDirectories } from './services/fileManager';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Initialize secure upload directories
-initUploadDirectories();
 
 // Validate JWT Secret & security requirements at startup
 // In production, this will abort startup if JWT_SECRET is absent or insecure
@@ -34,45 +15,7 @@ try {
 }
 
 async function startServer() {
-  const app = express();
   const PORT = parseInt(process.env.PORT || '3000', 10);
-
-  // Global Middlewares
-  app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-  app.use(cookieParser());
-
-  // SÉCURITÉ : Les fichiers clients (devis) sont PRIVÉS et accessibles uniquement via /api/quotes/:quoteId/files/:fileId
-  // Seules les images publiques du portfolio sont exposées de manière statique sous /uploads/portfolio
-  app.use('/uploads/portfolio', express.static(PORTFOLIO_UPLOADS_DIR));
-
-  // Blocage explicite de tout accès public direct au dossier racine /uploads ou /uploads/quotes
-  app.use('/uploads/quotes', (_req: Request, res: Response) => {
-    res.status(403).json({
-      success: false,
-      error: 'Accès interdit. Les fichiers de devis sont strictement confidentiels.',
-    });
-  });
-
-  // API Request Logger
-  app.use((req, _res, next) => {
-    if (req.path.startsWith('/api')) {
-      console.log(`[API ${req.method}] ${req.path}`);
-    }
-    next();
-  });
-
-  // Mount API Sub-routers
-  app.use('/api/auth', authRouter);
-  app.use('/api/health', healthRouter);
-  app.use('/api/company', companyRouter);
-  app.use('/api/stats', statsRouter);
-  app.use('/api/quotes', quotesRouter);
-  app.use('/api/contact', contactRouter);
-  app.use('/api/portfolio', portfolioRouter);
-  app.use('/api/services', servicesRouter);
-  app.use('/api/prices', pricesRouter);
-  app.use('/api/audit', auditRouter);
 
   // SEO Endpoints: robots.txt and sitemap.xml
   app.get('/robots.txt', (_req: Request, res: Response) => {
@@ -91,14 +34,6 @@ async function startServer() {
     } else {
       res.status(404).send('Sitemap not found');
     }
-  });
-
-  // API 404 handler (for unmatched /api calls only)
-  app.use('/api/*', (req: Request, res: Response) => {
-    res.status(404).json({
-      success: false,
-      error: `Endpoint API introuvable : ${req.method} ${req.originalUrl}`,
-    });
   });
 
   // Vite middleware for Development / Static serving for Production
@@ -132,9 +67,6 @@ async function startServer() {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
-
-  // Global Error Handler for unhandled errors (placed at the very end of middleware stack)
-  app.use(globalErrorHandler);
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Serveur Backend BARKA SOLUTIONS S.A.S démarré sur http://localhost:${PORT}`);

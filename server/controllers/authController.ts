@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../db/database';
-import { comparePassword, hashPassword, generateToken, revokeToken } from '../services/auth';
+import { comparePassword, hashPassword, generateToken, revokeToken, isStrongPassword } from '../services/auth';
 import { AuthenticatedRequest } from '../middleware/authMiddleware';
 import { recordFailedLogin, resetLoginAttempts } from '../middleware/rateLimiter';
 import { logAdminAction } from '../services/auditLogger';
@@ -21,14 +21,14 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
     
     if (!user || !user.isActive) {
       recordFailedLogin(req);
-      res.status(401).json({ success: false, error: 'Identifiants incorrects ou compte inactif' });
+      res.status(401).json({ success: false, error: 'Identifiant ou mot de passe incorrect' });
       return;
     }
 
     const isMatch = await comparePassword(String(password), user.passwordHash);
     if (!isMatch) {
       recordFailedLogin(req);
-      res.status(401).json({ success: false, error: 'Identifiants incorrects ou mot de passe invalide' });
+      res.status(401).json({ success: false, error: 'Identifiant ou mot de passe incorrect' });
       return;
     }
 
@@ -39,7 +39,7 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
     const token = generateToken(user);
 
     // Set secure HttpOnly, Secure, SameSite cookie
-    const isProduction = process.env.NODE_ENV === 'production';
+    const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
     res.cookie('barka_auth_token', token, {
       httpOnly: true,
       secure: isProduction,
@@ -113,7 +113,7 @@ export async function logout(req: AuthenticatedRequest, res: Response): Promise<
 
     // 2. Revoke the token so it cannot be used again
     if (token) {
-      revokeToken(token);
+      await revokeToken(token, req.user?.id, 'LOGOUT');
     }
 
     if (req.user) {
@@ -128,7 +128,7 @@ export async function logout(req: AuthenticatedRequest, res: Response): Promise<
     }
 
     // 3. Clear HttpOnly auth cookie
-    const isProduction = process.env.NODE_ENV === 'production';
+    const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
     res.clearCookie('barka_auth_token', {
       httpOnly: true,
       secure: isProduction,
@@ -171,8 +171,10 @@ export async function createUser(req: AuthenticatedRequest, res: Response, next:
       return;
     }
 
-    if (String(password).length < 8) {
-      res.status(400).json({ success: false, error: 'Le mot de passe doit comporter au moins 8 caractères' });
+    const passwordStr = String(password);
+    const pwdValidation = isStrongPassword(passwordStr);
+    if (!pwdValidation.valid) {
+      res.status(400).json({ success: false, error: pwdValidation.reason || 'Le mot de passe ne respecte pas les critères de sécurité' });
       return;
     }
 

@@ -4,20 +4,27 @@ import crypto from 'crypto';
 import { UploadedFileMeta } from '../types';
 import { db } from '../db/database';
 
-export const UPLOADS_ROOT = path.join(process.cwd(), 'uploads');
+const isVercel = !!process.env.VERCEL;
+export const UPLOADS_ROOT = isVercel
+  ? path.join('/tmp', 'uploads')
+  : path.join(process.cwd(), 'uploads');
 export const QUOTES_UPLOADS_DIR = path.join(UPLOADS_ROOT, 'quotes');
 export const PORTFOLIO_UPLOADS_DIR = path.join(UPLOADS_ROOT, 'portfolio');
 
 // Ensure required directories exist at startup
 export function initUploadDirectories(): void {
-  if (!fs.existsSync(UPLOADS_ROOT)) {
-    fs.mkdirSync(UPLOADS_ROOT, { recursive: true });
-  }
-  if (!fs.existsSync(QUOTES_UPLOADS_DIR)) {
-    fs.mkdirSync(QUOTES_UPLOADS_DIR, { recursive: true });
-  }
-  if (!fs.existsSync(PORTFOLIO_UPLOADS_DIR)) {
-    fs.mkdirSync(PORTFOLIO_UPLOADS_DIR, { recursive: true });
+  try {
+    if (!fs.existsSync(UPLOADS_ROOT)) {
+      fs.mkdirSync(UPLOADS_ROOT, { recursive: true });
+    }
+    if (!fs.existsSync(QUOTES_UPLOADS_DIR)) {
+      fs.mkdirSync(QUOTES_UPLOADS_DIR, { recursive: true });
+    }
+    if (!fs.existsSync(PORTFOLIO_UPLOADS_DIR)) {
+      fs.mkdirSync(PORTFOLIO_UPLOADS_DIR, { recursive: true });
+    }
+  } catch (err: any) {
+    console.warn('⚠️ [FileManager] Erreur création dossiers upload:', err.message);
   }
 }
 

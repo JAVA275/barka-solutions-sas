@@ -2,6 +2,7 @@ import jwt, { Secret, SignOptions } from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { User, UserRole } from '../types';
+import { pgManager } from '../db/postgres';
 
 let cachedJwtSecret: string | null = null;
 
@@ -65,18 +66,23 @@ export interface JwtPayload {
   exp?: number;
 }
 
-// In-memory token revocation / blacklist store
+// In-memory token revocation cache (L1 fast cache)
 interface RevocationEntry {
   expiresAtMs: number;
 }
 const tokenBlacklist = new Map<string, RevocationEntry>();
 
-// Periodic cleanup of expired tokens in blacklist
+// Hash token with SHA-256 for fast, fixed-size DB indexing and security
+export function hashToken(token: string): string {
+  return crypto.createHash('sha256').update(token.trim()).digest('hex');
+}
+
+// Periodic cleanup of expired tokens in in-memory blacklist
 const cleanupInterval = setInterval(() => {
   const now = Date.now();
-  for (const [token, entry] of tokenBlacklist.entries()) {
+  for (const [hash, entry] of tokenBlacklist.entries()) {
     if (now > entry.expiresAtMs) {
-      tokenBlacklist.delete(token);
+      tokenBlacklist.delete(hash);
     }
   }
 }, 15 * 60 * 1000);
@@ -85,29 +91,113 @@ if (cleanupInterval.unref) {
 }
 
 /**
- * Revokes a JWT token (used upon logout or security events)
+ * Revokes a JWT token persistently (PostgreSQL DB + in-memory fast cache)
  */
-export function revokeToken(token: string): void {
+export async function revokeToken(token: string, userId?: string, reason = 'LOGOUT'): Promise<void> {
   if (!token) return;
+  const tokenHash = hashToken(token);
+  let expiresAtMs = Date.now() + 24 * 3600 * 1000;
+
   try {
-    const decoded = jwt.decode(token) as { exp?: number } | null;
-    const expiresAtMs = decoded?.exp ? decoded.exp * 1000 : Date.now() + 24 * 3600 * 1000;
-    tokenBlacklist.set(token, { expiresAtMs });
+    const decoded = jwt.decode(token) as { exp?: number; id?: string; userId?: string } | null;
+    if (decoded?.exp) {
+      expiresAtMs = decoded.exp * 1000;
+    }
+    if (!userId && (decoded?.id || decoded?.userId)) {
+      userId = decoded.id || decoded.userId;
+    }
   } catch {
-    tokenBlacklist.set(token, { expiresAtMs: Date.now() + 8 * 3600 * 1000 });
+    // fallback expiresAtMs
+  }
+
+  // 1. In-memory fast cache
+  tokenBlacklist.set(tokenHash, { expiresAtMs });
+
+  // 2. Persistent storage in PostgreSQL if connected
+  if (pgManager.isPgConnected()) {
+    try {
+      const expiresAt = new Date(expiresAtMs);
+      await pgManager.query(
+        `INSERT INTO revoked_tokens (token_hash, user_id, expires_at, reason)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (token_hash) DO NOTHING`,
+        [tokenHash, userId || null, expiresAt, reason]
+      );
+    } catch (err: any) {
+      console.warn('⚠️ [Auth] Erreur persistance révocation token dans PostgreSQL:', err.message);
+    }
   }
 }
 
 /**
- * Checks if a token has been revoked
+ * Checks if a token has been revoked (Synchronous fast-check against L1 cache)
  */
 export function isTokenRevoked(token: string): boolean {
   if (!token) return true;
-  return tokenBlacklist.has(token);
+  const tokenHash = hashToken(token);
+  return tokenBlacklist.has(tokenHash);
+}
+
+/**
+ * Asynchronously checks if a token has been revoked (L1 Memory Cache -> L2 PostgreSQL)
+ */
+export async function isTokenRevokedAsync(token: string): Promise<boolean> {
+  if (!token) return true;
+  const tokenHash = hashToken(token);
+
+  // 1. Check L1 Memory cache
+  if (tokenBlacklist.has(tokenHash)) {
+    return true;
+  }
+
+  // 2. Check L2 PostgreSQL if connected
+  if (pgManager.isPgConnected()) {
+    try {
+      const res = await pgManager.query(
+        `SELECT 1 FROM revoked_tokens WHERE token_hash = $1 AND expires_at > NOW() LIMIT 1`,
+        [tokenHash]
+      );
+      if (res.rows.length > 0) {
+        // Cache in L1
+        tokenBlacklist.set(tokenHash, { expiresAtMs: Date.now() + 3600 * 1000 });
+        return true;
+      }
+    } catch (err: any) {
+      console.warn('⚠️ [Auth] Erreur vérification révocation PostgreSQL:', err.message);
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Validate password complexity (defense against weak passwords)
+ */
+export function isStrongPassword(password: string): { valid: boolean; reason?: string } {
+  if (!password || typeof password !== 'string') {
+    return { valid: false, reason: 'Le mot de passe est obligatoire.' };
+  }
+  if (password.length < 10) {
+    return { valid: false, reason: 'Le mot de passe doit comporter au moins 10 caractères.' };
+  }
+  if (!/[A-Z]/.test(password)) {
+    return { valid: false, reason: 'Le mot de passe doit contenir au moins une lettre majuscule (A-Z).' };
+  }
+  if (!/[a-z]/.test(password)) {
+    return { valid: false, reason: 'Le mot de passe doit contenir au moins une lettre minuscule (a-z).' };
+  }
+  if (!/[0-9]/.test(password)) {
+    return { valid: false, reason: 'Le mot de passe doit contenir au moins un chiffre (0-9).' };
+  }
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password)) {
+    return { valid: false, reason: 'Le mot de passe doit contenir au moins un caractère spécial (!@#$%^&*...).' };
+  }
+  return { valid: true };
 }
 
 export async function hashPassword(plainText: string): Promise<string> {
-  const salt = await bcrypt.genSalt(10);
+  const rounds = process.env.NODE_ENV === 'production' ? 12 : 10;
+  const salt = await bcrypt.genSalt(rounds);
   return bcrypt.hash(plainText, salt);
 }
 

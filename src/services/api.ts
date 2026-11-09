@@ -16,6 +16,8 @@ import {
 
 const TOKEN_KEY = 'barka_auth_token';
 
+let inMemoryToken: string | null = null;
+
 export interface ApiResult<T> {
   success: boolean;
   data?: T;
@@ -25,22 +27,32 @@ export interface ApiResult<T> {
 }
 
 export function getStoredToken(): string | null {
+  if (inMemoryToken) return inMemoryToken;
   try {
-    return localStorage.getItem(TOKEN_KEY);
+    const stored = localStorage.getItem(TOKEN_KEY);
+    if (stored) {
+      inMemoryToken = stored;
+      // Securely clear from unencrypted localStorage to prevent XSS exfiltration
+      localStorage.removeItem(TOKEN_KEY);
+    }
+    return inMemoryToken;
   } catch {
-    return null;
+    return inMemoryToken;
   }
 }
 
 export function setStoredToken(token: string): void {
+  inMemoryToken = token;
   try {
-    localStorage.setItem(TOKEN_KEY, token);
+    // Keep localStorage clean of sensitive JWT tokens
+    localStorage.removeItem(TOKEN_KEY);
   } catch {
     // ignore
   }
 }
 
 export function clearStoredToken(): void {
+  inMemoryToken = null;
   try {
     localStorage.removeItem(TOKEN_KEY);
   } catch {
@@ -49,7 +61,9 @@ export function clearStoredToken(): void {
 }
 
 function getAuthHeaders(isFormData = false): Record<string, string> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {
+    'X-Requested-With': 'XMLHttpRequest',
+  };
   if (!isFormData) {
     headers['Content-Type'] = 'application/json';
   }
@@ -69,6 +83,16 @@ async function apiRequest<T = any>(
   options: RequestInit = {}
 ): Promise<ApiResult<T>> {
   try {
+    // Automatically include HttpOnly secure cookies with all requests
+    options.credentials = 'include';
+
+    // Ensure X-Requested-With header is present for CSRF defense
+    const headers = new Headers(options.headers || {});
+    if (!headers.has('X-Requested-With')) {
+      headers.set('X-Requested-With', 'XMLHttpRequest');
+    }
+    options.headers = headers;
+
     const res = await fetch(url, options);
 
     // Try parsing json body
@@ -164,10 +188,6 @@ export const apiService = {
   },
 
   async getCurrentUser(): Promise<{ success: boolean; user?: AuthUser; error?: string }> {
-    const token = getStoredToken();
-    if (!token) {
-      return { success: false, error: 'Non authentifié' };
-    }
     const result = await apiRequest<AuthUser>('/api/auth/me', {
       headers: getAuthHeaders(),
     });
@@ -179,13 +199,11 @@ export const apiService = {
   },
 
   async logout(): Promise<void> {
-    const token = getStoredToken();
     clearStoredToken();
     try {
-      await fetch('/api/auth/logout', {
+      await apiRequest('/api/auth/logout', {
         method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        credentials: 'same-origin',
+        headers: getAuthHeaders(),
       });
     } catch {
       // ignore

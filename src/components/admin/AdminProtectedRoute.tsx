@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { AdminDashboard, AdminTab } from '../AdminDashboard';
-import { apiService, getStoredToken } from '../../services/api';
+import { apiService } from '../../services/api';
 import { AuthUser } from '../../types';
 
 interface AdminProtectedRouteProps {
@@ -18,15 +18,6 @@ export const AdminProtectedRoute: React.FC<AdminProtectedRouteProps> = ({ tab = 
   useEffect(() => {
     let isMounted = true;
     const checkAuth = async () => {
-      const token = getStoredToken();
-      if (!token) {
-        if (isMounted) {
-          setCurrentUser(null);
-          setIsVerifying(false);
-        }
-        return;
-      }
-
       try {
         const res = await apiService.getCurrentUser();
         if (isMounted) {

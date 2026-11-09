@@ -285,6 +285,16 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 19. Table des Jetons Révoqués (Persistance de Révocation / Blacklist Serverless)
+CREATE TABLE IF NOT EXISTS revoked_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    token_hash VARCHAR(64) UNIQUE NOT NULL,
+    user_id VARCHAR(100),
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    revoked_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    reason VARCHAR(100) DEFAULT 'LOGOUT'
+);
+
 -- Index pour performances de recherche
 CREATE INDEX IF NOT EXISTS idx_quotes_status ON quotes(status);
 CREATE INDEX IF NOT EXISTS idx_quotes_submitted_at ON quotes(submitted_at DESC);
@@ -297,5 +307,8 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DE
 CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_username ON audit_logs(username);
+CREATE INDEX IF NOT EXISTS idx_revoked_tokens_hash ON revoked_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS idx_revoked_tokens_expires_at ON revoked_tokens(expires_at);
+
 
 

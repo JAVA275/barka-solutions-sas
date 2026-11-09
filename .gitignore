@@ -20,6 +20,7 @@ uploads/
 # Backups and temporary files
 backup-before-duplicate-cleanup/
 *.log
+*.zip
 .DS_Store
 Thumbs.db
 

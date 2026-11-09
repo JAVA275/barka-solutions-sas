@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AuthUser, SubmittedQuote } from '../types';
-import { apiService, getStoredToken } from '../services/api';
+import { apiService } from '../services/api';
 import { AdminLogin } from './AdminLogin';
 import { AdminDashboard } from './AdminDashboard';
 
@@ -22,13 +22,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
 
     const checkAuth = async () => {
       setIsVerifying(true);
-      const token = getStoredToken();
-      if (!token) {
-        setCurrentUser(null);
-        setIsVerifying(false);
-        return;
-      }
-
       try {
         const res = await apiService.getCurrentUser();
         if (res.success && res.user) {

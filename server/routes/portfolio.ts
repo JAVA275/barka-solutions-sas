@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as portfolioController from '../controllers/portfolioController';
-import { portfolioUpload } from '../middleware/uploadMiddleware';
+import { portfolioUpload, validatePortfolioFileMiddleware } from '../middleware/uploadMiddleware';
 import { authenticateJWT, requireRole } from '../middleware/authMiddleware';
 
 export const portfolioRouter = Router();
@@ -17,6 +17,7 @@ portfolioRouter.post(
   authenticateJWT,
   requireRole(['ADMIN', 'EDITOR']),
   portfolioUpload.single('image'),
+  validatePortfolioFileMiddleware,
   portfolioController.uploadPortfolioImage
 );
 
@@ -26,6 +27,7 @@ portfolioRouter.post(
   authenticateJWT,
   requireRole(['ADMIN', 'EDITOR']),
   portfolioUpload.single('image'),
+  validatePortfolioFileMiddleware,
   portfolioController.createPortfolioItem
 );
 
@@ -38,6 +40,7 @@ portfolioRouter.patch(
   authenticateJWT,
   requireRole(['ADMIN', 'EDITOR']),
   portfolioUpload.single('image'),
+  validatePortfolioFileMiddleware,
   portfolioController.updatePortfolioItem
 );
 

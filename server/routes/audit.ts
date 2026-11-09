@@ -1,15 +1,16 @@
 import { Router, Response } from 'express';
 import { db } from '../db/database';
-import { authenticateJWT, AuthenticatedRequest } from '../middleware/authMiddleware';
+import { authenticateJWT, requireRole, AuthenticatedRequest } from '../middleware/authMiddleware';
 
 export const auditRouter = Router();
 
-// Apply JWT Authentication to all audit endpoints
+// Apply JWT Authentication and Strict ADMIN-Only Authorization to all audit endpoints
 auditRouter.use(authenticateJWT);
+auditRouter.use(requireRole(['ADMIN']));
 
 /**
  * GET /api/audit/stats
- * Get statistical overview of administrative audit actions
+ * Get statistical overview of administrative audit actions (ADMIN ONLY)
  */
 auditRouter.get('/stats', (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -19,17 +20,17 @@ auditRouter.get('/stats', (req: AuthenticatedRequest, res: Response) => {
       stats,
     });
   } catch (error: any) {
+    console.error('[AUDIT ERROR] Erreur getAuditStats:', error);
     return res.status(500).json({
       success: false,
-      error: 'Erreur lors de la récupération des statistiques d’audit',
-      details: error.message,
+      error: 'Erreur lors de la récupération des statistiques d’audit.',
     });
   }
 });
 
 /**
  * GET /api/audit
- * Get filtered audit logs with pagination and search
+ * Get filtered audit logs with pagination and search (ADMIN ONLY)
  */
 auditRouter.get('/', (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -54,17 +55,17 @@ auditRouter.get('/', (req: AuthenticatedRequest, res: Response) => {
       logs,
     });
   } catch (error: any) {
+    console.error('[AUDIT ERROR] Erreur getAllAuditLogs:', error);
     return res.status(500).json({
       success: false,
-      error: 'Erreur lors de la récupération du journal d’audit',
-      details: error.message,
+      error: 'Erreur lors de la récupération du journal d’audit.',
     });
   }
 });
 
 /**
  * GET /api/audit/:id
- * Get details of a single audit log
+ * Get details of a single audit log (ADMIN ONLY)
  */
 auditRouter.get('/:id', (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -74,7 +75,7 @@ auditRouter.get('/:id', (req: AuthenticatedRequest, res: Response) => {
     if (!log) {
       return res.status(404).json({
         success: false,
-        error: 'Entrée du journal d’audit introuvable',
+        error: 'Entrée du journal d’audit introuvable.',
       });
     }
 
@@ -83,10 +84,10 @@ auditRouter.get('/:id', (req: AuthenticatedRequest, res: Response) => {
       log,
     });
   } catch (error: any) {
+    console.error('[AUDIT ERROR] Erreur getAuditLogById:', error);
     return res.status(500).json({
       success: false,
-      error: 'Erreur lors de la lecture de l’entrée d’audit',
-      details: error.message,
+      error: 'Erreur lors de la lecture de l’entrée d’audit.',
     });
   }
 });

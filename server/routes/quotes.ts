@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as quotesController from '../controllers/quotesController';
-import { quoteUpload } from '../middleware/uploadMiddleware';
+import { quoteUpload, validateQuoteFilesMiddleware } from '../middleware/uploadMiddleware';
 import { authenticateJWT, requireRole } from '../middleware/authMiddleware';
 import { validateQuoteInput, validatePricingInput } from '../middleware/validationMiddleware';
 import {
@@ -19,6 +19,7 @@ quotesRouter.post(
   '/',
   quotesRateLimiter,
   quoteUpload.array('files', 5),
+  validateQuoteFilesMiddleware,
   uploadAbuseLimiter,
   honeypotBotGuard,
   validateQuoteInput,

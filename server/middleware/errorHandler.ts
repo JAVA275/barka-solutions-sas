@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import multer from 'multer';
+import crypto from 'crypto';
 
 export interface ApiError extends Error {
   statusCode?: number;
@@ -19,6 +20,8 @@ export function globalErrorHandler(
   res: Response,
   _next: NextFunction
 ): void {
+  const traceId = (req as any).traceId || crypto.randomUUID();
+
   // Handle Multer errors specifically with 400 Bad Request
   if (err instanceof multer.MulterError) {
     let message = 'Erreur lors du téléversement du fichier.';
@@ -50,18 +53,20 @@ export function globalErrorHandler(
     ? (err as ApiError).statusCode!
     : 500;
 
-  // Log full error details server-side
-  console.error(`[API ERROR] ${req.method} ${req.originalUrl} - Code: ${statusCode}`);
+  // Log full error details securely on the server with traceId
+  console.error(`[API ERROR] [traceId=${traceId}] ${req.method} ${req.originalUrl} - Status: ${statusCode}`);
   console.error(err.stack || err);
 
-  // Return simple, safe, and professional error message to the client
+  // Return simple, safe error message to the client without leaking internals
+  const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
   const clientMessage =
     statusCode === 500
-      ? 'Une erreur est survenue. Veuillez réessayer ultérieurement.'
+      ? 'Une erreur interne est survenue. Veuillez réessayer ultérieurement.'
       : err.message || 'Requête invalide.';
 
   res.status(statusCode).json({
     success: false,
     error: clientMessage,
+    traceId: statusCode === 500 ? traceId : undefined,
   });
 }

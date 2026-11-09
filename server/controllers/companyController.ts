@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../db/database';
+import { pgManager } from '../db/postgres';
 import { AuthenticatedRequest } from '../middleware/authMiddleware';
 import { getMailerConfig, testEmailDelivery } from '../services/mailer';
 import { logAdminAction } from '../services/auditLogger';
@@ -146,10 +147,33 @@ export async function triggerTestEmail(req: AuthenticatedRequest, res: Response,
 }
 
 export function getHealthCheck(_req: Request, res: Response): void {
+  const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+  const isConnected = pgManager.isPgConnected();
+  const dbMode = pgManager.getMode();
+
+  if (isProduction && !isConnected) {
+    res.status(503).json({
+      status: 'error',
+      app: 'BARKA SOLUTIONS API',
+      code: 'DATABASE_UNAVAILABLE',
+      error: 'Base de données PostgreSQL requise en production mais actuellement indisponible.',
+      database: {
+        mode: dbMode,
+        connected: false,
+      },
+      serverTime: new Date().toISOString(),
+    });
+    return;
+  }
+
   res.json({
     status: 'ok',
     app: 'BARKA SOLUTIONS API',
     version: '1.0.0',
+    database: {
+      mode: dbMode,
+      connected: isConnected,
+    },
     serverTime: new Date().toISOString(),
   });
 }

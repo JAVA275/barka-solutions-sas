@@ -1,12 +1,8 @@
 import pg from 'pg';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
 const { Pool } = pg;
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 export interface DbConfig {
   connectionString?: string;
@@ -99,8 +95,12 @@ class PostgresManager {
 
     try {
       console.log('🔄 [PostgreSQL] Exécution des migrations du schéma...');
-      const schemaPath = path.resolve(__dirname, 'schema.sql');
-      if (fs.existsSync(schemaPath)) {
+      const candidatePaths = [
+        path.resolve(process.cwd(), 'server', 'db', 'schema.sql'),
+        path.resolve(process.cwd(), 'schema.sql'),
+      ];
+      const schemaPath = candidatePaths.find((p) => fs.existsSync(p));
+      if (schemaPath) {
         const sql = fs.readFileSync(schemaPath, 'utf-8');
         await this.pool.query(sql);
         console.log('✅ [PostgreSQL] Schéma et tables PostgreSQL synchronisés avec succès.');
@@ -126,8 +126,12 @@ class PostgresManager {
       }
 
       console.log('🌱 [PostgreSQL] Initialisation / Migration des données depuis store.json vers PostgreSQL...');
-      const storePath = path.resolve(__dirname, '../data/store.json');
-      if (!fs.existsSync(storePath)) {
+      const candidateStorePaths = [
+        path.resolve(process.cwd(), 'server', 'data', 'store.json'),
+        path.resolve(process.cwd(), 'data', 'store.json'),
+      ];
+      const storePath = candidateStorePaths.find((p) => fs.existsSync(p));
+      if (!storePath) {
         return;
       }
 

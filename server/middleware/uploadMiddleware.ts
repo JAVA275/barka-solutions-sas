@@ -1,11 +1,14 @@
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { Request, Response, NextFunction } from 'express';
 import {
   QUOTES_UPLOADS_DIR,
   PORTFOLIO_UPLOADS_DIR,
   generateRandomFileName,
+  deleteMulterFiles,
 } from '../services/fileManager';
+import { validateUploadedFile } from '../services/fileValidator';
 
 // =========================================================================
 // 1. CONFIGURATION POUR LES DEMANDES DE DEVIS (DOCUMENTS CLIENTS PRIVÉS)
@@ -150,3 +153,58 @@ export const portfolioUpload = multer({
     files: 1, // Une seule image à la fois
   },
 });
+
+/**
+ * Middleware de validation binaire stricte (magic bytes) pour les fichiers de devis.
+ */
+export function validateQuoteFilesMiddleware(req: Request, res: Response, next: NextFunction): void {
+  const files = req.files as Express.Multer.File[] | undefined;
+  if (!files || !Array.isArray(files) || files.length === 0) {
+    return next();
+  }
+
+  for (const file of files) {
+    const check = validateUploadedFile(file.path, file.originalname, 'quote');
+    if (!check.valid) {
+      deleteMulterFiles(files);
+      res.status(400).json({
+        success: false,
+        error: `Fichier rejeté (${file.originalname}) : ${check.error || 'Signature binaire invalide ou non conforme.'}`,
+        code: 'INVALID_FILE_SIGNATURE',
+      });
+      return;
+    }
+    if (check.detectedType) {
+      file.mimetype = check.detectedType;
+    }
+  }
+
+  next();
+}
+
+/**
+ * Middleware de validation binaire stricte (magic bytes) pour les images du portfolio.
+ */
+export function validatePortfolioFileMiddleware(req: Request, res: Response, next: NextFunction): void {
+  const file = req.file;
+  if (!file) {
+    return next();
+  }
+
+  const check = validateUploadedFile(file.path, file.originalname, 'portfolio');
+  if (!check.valid) {
+    deleteMulterFiles([file]);
+    res.status(400).json({
+      success: false,
+      error: `Image rejetée (${file.originalname}) : ${check.error || 'Signature binaire d’image non conforme.'}`,
+      code: 'INVALID_IMAGE_SIGNATURE',
+    });
+    return;
+  }
+  if (check.detectedType) {
+    file.mimetype = check.detectedType;
+  }
+
+  next();
+}
+

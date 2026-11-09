@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyToken, JwtPayload, isTokenRevoked } from '../services/auth';
+import { verifyToken, JwtPayload, isTokenRevoked, isTokenRevokedAsync } from '../services/auth';
 import { UserRole } from '../types';
 import { db } from '../db/database';
 
@@ -52,7 +52,8 @@ export async function authenticateJWT(req: AuthenticatedRequest, res: Response, 
     return;
   }
 
-  if (isTokenRevoked(token)) {
+  const isRevoked = await isTokenRevokedAsync(token);
+  if (isRevoked) {
     res.status(401).json({
       success: false,
       error: 'Cette session a été révoquée suite à une déconnexion. Veuillez vous reconnecter.',

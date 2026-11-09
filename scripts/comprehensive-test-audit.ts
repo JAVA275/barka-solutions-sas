@@ -1,8 +1,11 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import http from 'http';
+import { app } from '../server/app.js';
 
-const BASE_URL = process.env.TEST_URL || 'http://localhost:3000';
+let BASE_URL = process.env.TEST_URL || '';
+let serverInstance: http.Server | null = null;
 
 interface TestResult {
   category: string;
@@ -51,6 +54,18 @@ async function runAllTests() {
   console.log('===============================================================');
   console.log('🚀 DÉMARRAGE DE L’AUDIT COMPLET DES TESTS - BARKA SOLUTIONS S.A.S');
   console.log('===============================================================\n');
+
+  // Start internal test server if no external URL provided
+  if (!BASE_URL) {
+    await new Promise<void>((resolve) => {
+      serverInstance = app.listen(0, '127.0.0.1', () => {
+        const address = serverInstance!.address() as any;
+        BASE_URL = `http://127.0.0.1:${address.port}`;
+        console.log(`📡 Serveur de test interne prêt sur ${BASE_URL}\n`);
+        resolve();
+      });
+    });
+  }
 
   const runId = Date.now();
   const testAdminUser = `test_admin_${runId}`;
@@ -990,6 +1005,10 @@ async function runAllTests() {
     for (const f of failed) {
       console.log(`- [${f.category}] ${f.name}: ${f.error}`);
     }
+  }
+
+  if (serverInstance) {
+    serverInstance.close();
   }
 
   return { total: results.length, passed: passed.length, failed: failed.length, failures: failed };
