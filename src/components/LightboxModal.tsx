@@ -118,7 +118,7 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
                   className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs sm:text-sm transition-colors shadow-md cursor-pointer min-h-[44px]"
                 >
                   <FileText className="w-4 h-4" />
-                  <span>Demander un devis pour ce produit</span>
+                  <span>Passer une commande pour ce produit</span>
                 </motion.button>
               </div>
             </div>

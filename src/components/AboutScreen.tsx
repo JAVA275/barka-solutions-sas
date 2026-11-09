@@ -185,7 +185,7 @@ export const AboutScreen: React.FC<AboutScreenProps> = ({ onBack, onSelectTab })
           className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm transition-colors shadow-md shrink-0 cursor-pointer min-h-[44px]"
         >
           <FileText className="w-4 h-4" />
-          <span>Demander un devis</span>
+          <span>Passer une commande</span>
         </motion.button>
       </motion.div>
     </div>

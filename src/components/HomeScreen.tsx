@@ -205,7 +205,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onSelectTab, onOpenLight
                 id="hero-btn-devis"
                 className="inline-flex items-center gap-2 px-5 sm:px-6 py-3 sm:py-3.5 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm tracking-wide border border-white/20 backdrop-blur-xs transition-all cursor-pointer"
               >
-                <span>Demander un devis gratuit</span>
+                <span>Passer une commande</span>
               </motion.button>
             </motion.div>
           </div>

@@ -202,7 +202,7 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             </nav>
 
-            {/* Right Action: Vibrant Magenta "Demander un devis" CTA Button */}
+            {/* Right Action: Vibrant Magenta "Passer une commande" CTA Button */}
             <div className="flex items-center gap-2">
               <motion.button
                 whileHover={{ scale: 1.03, y: -1 }}
@@ -212,7 +212,7 @@ export const Header: React.FC<HeaderProps> = ({
                 className="hidden sm:inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full text-xs font-extrabold bg-[#e6006e] hover:bg-[#cf0063] text-white shadow-md shadow-pink-500/25 transition-all cursor-pointer"
               >
                 <Send className="w-3.5 h-3.5 fill-current rotate-45" />
-                <span>Demander un devis</span>
+                <span>Passer une commande</span>
               </motion.button>
 
               {/* Mobile Menu Hamburger */}

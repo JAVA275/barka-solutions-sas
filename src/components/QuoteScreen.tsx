@@ -393,7 +393,7 @@ export const QuoteScreen: React.FC<QuoteScreenProps> = ({
           Moteur de chiffrage direct & devis personnalisé
         </span>
         <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight mb-2">
-          Demande de Devis sur Mesure
+          Passer une Commande sur Mesure
         </h1>
         <p className="text-slate-600 text-base">
           Configurez votre projet en 4 étapes simples et obtenez une estimation immédiate avec validation technique.
@@ -1086,7 +1086,7 @@ export const QuoteScreen: React.FC<QuoteScreenProps> = ({
                     ) : (
                       <>
                         <Send className="w-5 h-5" />
-                        ENVOYER LA DEMANDE
+                        VALIDER LA COMMANDE
                       </>
                     )}
                   </motion.button>

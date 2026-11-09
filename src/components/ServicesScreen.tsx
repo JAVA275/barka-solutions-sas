@@ -142,7 +142,7 @@ export const ServicesScreen: React.FC<ServicesScreenProps> = ({
           className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs transition-colors shadow-sm cursor-pointer"
         >
           <FileText className="w-4 h-4 text-amber-400" />
-          <span>Demander un devis immédiat</span>
+          <span>Passer une commande</span>
         </motion.button>
       </div>
 

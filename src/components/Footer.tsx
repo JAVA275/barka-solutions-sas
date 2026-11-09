@@ -65,7 +65,7 @@ export const Footer: React.FC<FooterProps> = ({ onSelectTab, onOpenAdmin }) => {
                 { id: 'services', label: 'Nos services' },
                 { id: 'tarifs', label: 'Grille tarifaire' },
                 { id: 'galerie', label: 'Nos Réalisations' },
-                { id: 'devis', label: 'Demander un devis' },
+                { id: 'devis', label: 'Passer une commande' },
                 { id: 'apropos', label: 'À propos' },
                 { id: 'contact', label: 'Contactez-nous' },
               ].map((link) => (

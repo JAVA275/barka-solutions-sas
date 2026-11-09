@@ -93,7 +93,7 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
               className="flex-1 inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs sm:text-sm transition-all shadow-md cursor-pointer"
             >
               <FileText className="w-4 h-4" />
-              <span>Demander un devis personnalisé</span>
+              <span>Passer une commande personnalisée</span>
             </button>
 
             <a

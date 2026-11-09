@@ -37,7 +37,7 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
     { id: 'services' as TabType, label: 'Nos services', icon: LayoutGrid },
     { id: 'tarifs' as TabType, label: 'Grille tarifaire', icon: Tag },
     { id: 'galerie' as TabType, label: 'Nos Réalisations', icon: ImageIcon },
-    { id: 'devis' as TabType, label: 'Demander un devis', icon: FileText },
+    { id: 'devis' as TabType, label: 'Passer une commande', icon: FileText },
     { id: 'apropos' as TabType, label: 'À propos', icon: Info },
     { id: 'contact' as TabType, label: 'Contact', icon: Mail },
   ];

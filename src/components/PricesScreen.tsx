@@ -129,7 +129,7 @@ export const PricesScreen: React.FC<PricesScreenProps> = ({
   }, [filteredCategories]);
 
   const handleOrderWhatsApp = (item: PriceGridItem) => {
-    const message = `Bonjour BARKA SOLUTIONS S.A.S,%0A%0AJe souhaite demander un devis ou avoir des précisions sur le produit suivant :%0A- *Produit* : ${encodeURIComponent(item.name)}%0A- *Format / Spécification* : ${encodeURIComponent(item.format || item.specs || 'Standard')}%0A- *Tarif* : Sur devis personnalisé%0A%0AMerci de m'indiquer la disponibilité et les modalités de commande à Ngaoundéré.`;
+    const message = `Bonjour BARKA SOLUTIONS S.A.S,%0A%0AJe souhaite passer une commande ou avoir des précisions sur le produit suivant :%0A- *Produit* : ${encodeURIComponent(item.name)}%0A- *Format / Spécification* : ${encodeURIComponent(item.format || item.specs || 'Standard')}%0A- *Tarif* : Sur devis personnalisé%0A%0AMerci de m'indiquer la disponibilité et les modalités de commande à Ngaoundéré.`;
 
     const waNumber = (COMPANY_INFO.whatsapp_raw || COMPANY_INFO.whatsapp || '237696311198').replace(/\D/g, '');
     window.open(`https://wa.me/${waNumber}?text=${message}`, '_blank');
@@ -431,10 +431,10 @@ export const PricesScreen: React.FC<PricesScreenProps> = ({
                           whileTap={{ scale: 0.96 }}
                           onClick={() => handleOrderWhatsApp(item)}
                           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors shadow-2xs cursor-pointer shrink-0"
-                          title="Demander un devis pour ce produit sur WhatsApp"
+                          title="Passer une commande pour ce produit sur WhatsApp"
                         >
                           <MessageCircle className="w-3.5 h-3.5" />
-                          <span>Demander un devis</span>
+                          <span>Passer une commande</span>
                         </motion.button>
                       </div>
                     </div>
