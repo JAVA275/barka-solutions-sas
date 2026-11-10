@@ -13,7 +13,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onSelectTab }) 
     { id: 'accueil' as TabType, label: 'Accueil', icon: Home },
     { id: 'services' as TabType, label: 'Services', icon: LayoutGrid },
     { id: 'tarifs' as TabType, label: 'Tarifs', icon: Tag },
-    { id: 'devis' as TabType, label: 'Devis', icon: FileText },
+    { id: 'devis' as TabType, label: 'Commander', icon: FileText },
     { id: 'contact' as TabType, label: 'Contact', icon: MapPin },
   ];
 

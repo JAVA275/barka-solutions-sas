@@ -112,7 +112,7 @@ export function cleanOrphanFiles(): { quotesRemoved: number; portfolioRemoved: n
   try {
     // 1. Clean Quotes directory
     if (fs.existsSync(QUOTES_UPLOADS_DIR)) {
-      const allQuotes = db.getAllQuotes();
+      const allQuotes = db.getAllQuotesSync();
       const activeQuoteFileNames = new Set<string>();
 
       for (const q of allQuotes) {

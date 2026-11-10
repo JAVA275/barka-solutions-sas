@@ -274,7 +274,7 @@ export const AdminAuditTab: React.FC<AdminAuditTabProps> = ({ currentUser }) => 
               className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400 cursor-pointer"
             >
               <option value="ALL">Toutes les ressources</option>
-              <option value="DEVIS">Devis</option>
+              <option value="DEVIS">Commandes</option>
               <option value="TARIF">Tarifs</option>
               <option value="SERVICE">Services</option>
               <option value="PORTFOLIO">Portfolio</option>

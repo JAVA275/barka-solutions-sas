@@ -129,7 +129,7 @@ export const PricesScreen: React.FC<PricesScreenProps> = ({
   }, [filteredCategories]);
 
   const handleOrderWhatsApp = (item: PriceGridItem) => {
-    const message = `Bonjour BARKA SOLUTIONS S.A.S,%0A%0AJe souhaite passer une commande ou avoir des précisions sur le produit suivant :%0A- Produit : ${encodeURIComponent(item.name)}%0A- Format / Spécification : ${encodeURIComponent(item.format || item.specs || 'Standard')}%0A- Tarif : Sur devis personnalisé%0A%0AMerci de m'indiquer la disponibilité et les modalités de commande à Ngaoundéré.`;
+    const message = `Bonjour BARKA SOLUTIONS S.A.S,%0A%0AJe souhaite passer une commande ou avoir des précisions sur le produit suivant :%0A- Produit : ${encodeURIComponent(item.name)}%0A- Format / Spécification : ${encodeURIComponent(item.format || item.specs || 'Standard')}%0A- Tarif : Sur commande personnalisée%0A%0AMerci de m'indiquer la disponibilité et les modalités de commande à Ngaoundéré.`;
 
     const waNumber = (COMPANY_INFO.whatsapp_raw || COMPANY_INFO.whatsapp || '237696311198').replace(/\D/g, '');
     window.open(`https://wa.me/${waNumber}?text=${message}`, '_blank');
@@ -171,7 +171,7 @@ export const PricesScreen: React.FC<PricesScreenProps> = ({
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs sm:text-sm transition-colors shadow-sm cursor-pointer"
           >
             <FileText className="w-4 h-4" />
-            <span>Simulateur de Devis</span>
+            <span>Passer commande</span>
           </motion.button>
 
           <motion.a
@@ -214,10 +214,10 @@ export const PricesScreen: React.FC<PricesScreenProps> = ({
             <span>Prix clairs, transparents & dégressifs à Ngaoundéré</span>
           </div>
           <h2 className="text-lg sm:text-xl font-extrabold" style={{ fontFamily: 'Outfit, sans-serif' }}>
-            Consultez nos prestations et demandez un devis instantané
+            Consultez nos prestations et commandez en ligne
           </h2>
           <p className="text-xs sm:text-sm text-slate-300">
-            Toutes nos prestations sont réalisées <strong>sur mesure et sur devis personnalisé</strong> selon vos spécifications et quantités. Contactez directement nos ateliers à Ngaoundéré.
+            Toutes nos prestations sont réalisées <strong>sur mesure et sur commande personnalisée</strong> selon vos spécifications et quantités. Contactez directement nos ateliers à Ngaoundéré.
           </p>
         </div>
 
@@ -419,7 +419,7 @@ export const PricesScreen: React.FC<PricesScreenProps> = ({
                       <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                         <div className="text-left sm:text-right">
                           <span className="text-xs sm:text-sm font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg block">
-                            Sur devis
+                            Sur commande
                           </span>
                           <span className="text-[10px] text-slate-400 font-medium">
                             Chiffrage sur mesure

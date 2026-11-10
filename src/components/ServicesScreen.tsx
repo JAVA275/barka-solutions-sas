@@ -330,11 +330,11 @@ export const ServicesScreen: React.FC<ServicesScreenProps> = ({
 
                             <div className="pt-4 mt-3 border-t border-slate-100 flex items-center justify-between text-xs">
                               <span className="font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full text-[11px]">
-                                Sur devis personnalisé
+                                Sur commande personnalisée
                               </span>
 
                               <span className="inline-flex items-center gap-1 text-slate-400 group-hover:text-blue-900 font-bold group-hover:translate-x-1 transition-transform">
-                                <span>Détails & Devis</span>
+                                <span>Commander ce service</span>
                                 <ArrowUpRight className="w-3.5 h-3.5" />
                               </span>
                             </div>
@@ -386,11 +386,11 @@ export const ServicesScreen: React.FC<ServicesScreenProps> = ({
 
                     <div className="pt-4 mt-3 border-t border-slate-100 flex items-center justify-between text-xs">
                       <span className="font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full text-[11px]">
-                        Sur devis personnalisé
+                        Sur commande personnalisée
                       </span>
 
                       <span className="inline-flex items-center gap-1 text-slate-400 group-hover:text-blue-900 font-bold group-hover:translate-x-1 transition-transform">
-                        <span>Détails & Devis</span>
+                        <span>Commander ce service</span>
                         <ArrowUpRight className="w-3.5 h-3.5" />
                       </span>
                     </div>
@@ -433,7 +433,7 @@ export const ServicesScreen: React.FC<ServicesScreenProps> = ({
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs sm:text-sm transition-all shadow-md cursor-pointer"
           >
             <FileText className="w-4 h-4 text-slate-950" />
-            <span>Configurer mon devis en ligne</span>
+            <span>Passer commande en ligne</span>
           </button>
           <button
             onClick={() => onSelectTab('contact')}

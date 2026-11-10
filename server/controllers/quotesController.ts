@@ -197,10 +197,10 @@ export async function createQuote(req: Request, res: Response, next: NextFunctio
   }
 }
 
-export function listQuotes(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+export async function listQuotes(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const { status } = req.query;
-    const quotes = db.getAllQuotes(status ? normalizeQuoteStatus(String(status)) : undefined);
+    const quotes = await db.getAllQuotes(status ? normalizeQuoteStatus(String(status)) : undefined);
 
     res.json({
       success: true,
@@ -212,9 +212,9 @@ export function listQuotes(req: AuthenticatedRequest, res: Response, next: NextF
   }
 }
 
-export function getQuote(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+export async function getQuote(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
   try {
-    const quote = db.getQuoteById(req.params.id);
+    const quote = await db.getQuoteByIdAsync(req.params.id);
     if (!quote) {
       res.status(404).json({ success: false, error: 'Devis introuvable' });
       return;
@@ -225,12 +225,12 @@ export function getQuote(req: AuthenticatedRequest, res: Response, next: NextFun
   }
 }
 
-export function updateQuote(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+export async function updateQuote(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params;
     const { status, adminNotes, finalPrice, estimatedPrice, description } = req.body;
 
-    const quote = db.getQuoteById(id);
+    const quote = await db.getQuoteByIdAsync(id);
     if (!quote) {
       res.status(404).json({ success: false, error: 'Devis introuvable' });
       return;
@@ -348,7 +348,7 @@ export function deleteQuote(req: AuthenticatedRequest, res: Response, next: Next
  * Route protégée : Télécharger en toute sécurité un fichier joint à un devis
  * GET /api/quotes/:quoteId/files/:fileId
  */
-export function downloadQuoteFile(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+export async function downloadQuoteFile(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const { quoteId, fileId } = req.params;
 
@@ -372,7 +372,7 @@ export function downloadQuoteFile(req: AuthenticatedRequest, res: Response, next
     }
 
     // 2. Vérification de l'existence du devis
-    const quote = db.getQuoteById(quoteId);
+    const quote = await db.getQuoteByIdAsync(quoteId);
     if (!quote) {
       res.status(404).json({ success: false, error: 'Devis introuvable.' });
       return;

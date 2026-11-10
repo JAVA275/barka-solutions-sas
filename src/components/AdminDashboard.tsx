@@ -254,11 +254,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       ]);
 
       if (quotesRes.success && Array.isArray(quotesRes.data)) {
-        setQuotes(quotesRes.data);
-        if (quotesRes.data.length > 0 && !selectedQuote) {
-          setSelectedQuote(quotesRes.data[0]);
-          setQuoteAdminNotes(quotesRes.data[0].adminNotes || '');
-          setQuoteFinalPrice(quotesRes.data[0].finalPrice?.toString() || '');
+        let allQuotes = [...quotesRes.data];
+        try {
+          const localStored = localStorage.getItem('barka_client_submitted_quotes');
+          if (localStored) {
+            const clientQuotes = JSON.parse(localStored);
+            if (Array.isArray(clientQuotes)) {
+              const serverIds = new Set(allQuotes.map((q) => q.id));
+              for (const cq of clientQuotes) {
+                if (cq && cq.id && !serverIds.has(cq.id)) {
+                  allQuotes.push(cq);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Erreur lecture localStorage commandes clients:', e);
+        }
+        allQuotes.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+        setQuotes(allQuotes);
+        if (allQuotes.length > 0 && !selectedQuote) {
+          setSelectedQuote(allQuotes[0]);
+          setQuoteAdminNotes(allQuotes[0].adminNotes || '');
+          setQuoteFinalPrice(allQuotes[0].finalPrice?.toString() || '');
         }
       }
 
@@ -388,32 +406,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (res.success && res.data) {
       setSelectedQuote(res.data);
       setQuotes((prev) => prev.map((q) => (q.id === res.data!.id ? res.data! : q)));
-      setSaveMessage('Détails administratifs du devis sauvegardés.');
+      setSaveMessage('Détails administratifs de la commande sauvegardés.');
       setTimeout(() => setSaveMessage(null), 3000);
     } else {
-      alert(res.error || 'Erreur lors de la sauvegarde du devis.');
+      alert(res.error || 'Erreur lors de la sauvegarde de la commande.');
     }
   };
 
   const handleDeleteQuote = async (id: string) => {
-    if (!confirm(`Confirmer la suppression définitive du devis ${id} ?`)) return;
+    if (!confirm(`Confirmer la suppression définitive de la commande ${id} ?`)) return;
     const res = await apiService.deleteQuote(id);
     if (res.success) {
       setQuotes((prev) => prev.filter((q) => q.id !== id));
       if (selectedQuote?.id === id) {
         setSelectedQuote(quotes.find((q) => q.id !== id) || null);
       }
-      setSaveMessage('Devis supprimé avec succès.');
+      setSaveMessage('Commande supprimée avec succès.');
       setTimeout(() => setSaveMessage(null), 3000);
     } else {
-      alert(res.error || 'Erreur lors de la suppression du devis.');
+      alert(res.error || 'Erreur lors de la suppression de la commande.');
     }
   };
 
   // ================= QUOTE EXPORT ACTIONS =================
   const handleExportQuotesCSV = () => {
     if (quotes.length === 0) {
-      alert('Aucun devis à exporter');
+      alert('Aucune commande à exporter');
       return;
     }
     const headers = [
@@ -451,7 +469,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `devis-barka-solutions-${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `commandes-barka-solutions-${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
   };
 
@@ -460,7 +478,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `devis-barka-solutions-${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `commandes-barka-solutions-${new Date().toISOString().split('T')[0]}.json`;
     link.click();
   };
 
@@ -651,15 +669,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const file = files[0];
 
     setIsUploadingImage(true);
+    // Direct device photo loading & canvas compression (instant preview & storage)
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const maxDim = 1200;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          setPortfolioForm((prev) => ({ ...prev, image: canvas.toDataURL('image/jpeg', 0.85) }));
+        } else {
+          setPortfolioForm((prev) => ({ ...prev, image: ev.target?.result as string }));
+        }
+      };
+      img.src = ev.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+
     try {
       const res = await apiService.uploadPortfolioImage(file);
       if (res.success && res.imageUrl) {
         setPortfolioForm((prev) => ({ ...prev, image: res.imageUrl! }));
-      } else {
-        alert(res.error || 'Erreur lors du téléversement de l’image');
       }
     } catch {
-      alert('Erreur serveur lors de l’upload');
+      // Retain Base64 Data URL if server upload cannot write to disk
     } finally {
       setIsUploadingImage(false);
     }
@@ -893,7 +941,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
-            DEVIS ({quotes.length})
+            COMMANDES ({quotes.length})
             {quotes.filter((q) => q.status === 'NOUVEAU' || q.status === 'Nouveau').length > 0 && (
               <span className="bg-amber-500 text-slate-950 text-[10px] font-extrabold px-1.5 py-0.2 rounded-full">
                 {quotes.filter((q) => q.status === 'NOUVEAU' || q.status === 'Nouveau').length}
@@ -1066,7 +1114,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <button
                   onClick={handleExportQuotesCSV}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer border border-slate-200"
-                  title="Exporter tous les devis au format CSV"
+                  title="Exporter toutes les commandes au format CSV"
                 >
                   <Download className="w-3.5 h-3.5 text-blue-900" />
                   Export CSV
@@ -1074,7 +1122,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <button
                   onClick={handleExportQuotesJSON}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer border border-slate-200"
-                  title="Exporter les devis au format JSON"
+                  title="Exporter les commandes au format JSON"
                 >
                   JSON
                 </button>
@@ -1087,7 +1135,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="lg:col-span-5 space-y-3 max-h-[75vh] overflow-y-auto pr-1">
                 {filteredQuotes.length === 0 ? (
                   <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 text-sm">
-                    Aucun devis trouvé dans ce statut.
+                    Aucune commande trouvée dans ce statut.
                   </div>
                 ) : (
                   filteredQuotes.map((q) => {
@@ -1166,7 +1214,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <button
                             onClick={() => handleDeleteQuote(selectedQuote.id)}
                             className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition cursor-pointer"
-                            title="Supprimer ce devis"
+                            title="Supprimer cette commande"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -1237,7 +1285,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-200/60">
                         <a
                           href={`https://wa.me/${(selectedQuote.telephone || '').replace(/\D/g, '')}?text=${encodeURIComponent(
-                            `Bonjour ${selectedQuote.nom || ''}, l'équipe BARKA SOLUTIONS a bien pris en compte votre demande de devis N° ${selectedQuote.id} pour ${selectedQuote.typePrestation}.`
+                            `Bonjour ${selectedQuote.nom || ''}, l'équipe BARKA SOLUTIONS a bien pris en compte votre commande N° ${selectedQuote.id} pour ${selectedQuote.typePrestation}.`
                           )}`}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -1374,7 +1422,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </div>
 
                       <a
-                        href={`https://wa.me/${(selectedQuote.telephone || '').replace(/\D/g, '')}?text=Bonjour%20${encodeURIComponent(selectedQuote.nomComplet || selectedQuote.nom || '')}%2C%20BARKA%20SOLUTIONS%20concernant%20votre%20devis%20${selectedQuote.id}`}
+                        href={`https://wa.me/${(selectedQuote.telephone || '').replace(/\D/g, '')}?text=Bonjour%20${encodeURIComponent(selectedQuote.nomComplet || selectedQuote.nom || '')}%2C%20BARKA%20SOLUTIONS%20concernant%20votre%20commande%20${selectedQuote.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="bg-[#25D366] hover:bg-[#20ba59] text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md"
@@ -1386,7 +1434,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
                 ) : (
                   <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400 text-sm">
-                    Sélectionnez un devis dans la liste pour afficher ses détails.
+                    Sélectionnez une commande dans la liste pour afficher ses détails.
                   </div>
                 )}
               </div>
@@ -1631,43 +1679,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </div>
                     </div>
 
-                    {/* Image Upload & URL selector */}
+                    {/* Photo de la réalisation depuis l'appareil */}
                     <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                      <label className="block font-bold text-slate-700 uppercase">Image de la réalisation *</label>
+                      <label className="block font-bold text-slate-700 uppercase text-xs">Photo de la réalisation *</label>
 
                       {/* Image Preview */}
-                      {portfolioForm.image && (
+                      {portfolioForm.image ? (
                         <div className="relative aspect-16/9 bg-slate-900 rounded-lg overflow-hidden border border-slate-300 mb-2">
                           <img src={portfolioForm.image} alt="Aperçu" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setPortfolioForm((prev) => ({ ...prev, image: '' }))}
+                            className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-sm cursor-pointer"
+                            title="Supprimer la photo"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
                         </div>
-                      )}
+                      ) : null}
 
-                      <div className="flex flex-col sm:flex-row gap-2 items-center">
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          onChange={handleImageFileChange}
-                          accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                          className="hidden"
-                        />
-                        <button
-                          type="button"
-                          disabled={isUploadingImage}
-                          onClick={() => fileInputRef.current?.click()}
-                          className="w-full sm:w-auto px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg font-bold flex items-center justify-center gap-1.5 cursor-pointer"
-                        >
-                          <Upload className="w-3.5 h-3.5" />
-                          {isUploadingImage ? 'Téléversement...' : 'Importer photo atelier'}
-                        </button>
-                        <span className="text-slate-400 font-bold text-[10px]">OU</span>
-                        <input
-                          type="url"
-                          value={portfolioForm.image}
-                          onChange={(e) => setPortfolioForm({ ...portfolioForm, image: e.target.value })}
-                          placeholder="URL directe de l’image (https://...)"
-                          className="flex-1 p-2 border border-slate-300 rounded-lg bg-white text-slate-800"
-                        />
-                      </div>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleImageFileChange}
+                        accept="image/*"
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        disabled={isUploadingImage}
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full py-3 px-4 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-sm transition"
+                      >
+                        <Upload className="w-4 h-4 text-amber-400" />
+                        {isUploadingImage
+                          ? 'Chargement de la photo...'
+                          : portfolioForm.image
+                          ? 'Changer la photo depuis cet appareil'
+                          : 'Charger une photo depuis cet appareil'}
+                      </button>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1896,7 +1946,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <div>
               <h3 className="text-lg font-black text-slate-900 font-['Outfit']">Accès Réservé à l'Administrateur</h3>
               <p className="text-xs text-slate-600 mt-2 leading-relaxed max-w-md mx-auto">
-                Votre compte dispose du rôle <strong>ÉDITEUR</strong>. Vous pouvez consulter et traiter les devis, services, tarifs, portfolio et messages clients. La configuration globale de l'entreprise et du serveur est réservée aux <strong>ADMINISTRATEURS</strong>.
+                Votre compte dispose du rôle <strong>ÉDITEUR</strong>. Vous pouvez consulter et traiter les commandes, services, tarifs, portfolio et messages clients. La configuration globale de l'entreprise et du serveur est réservée aux <strong>ADMINISTRATEURS</strong>.
               </p>
             </div>
             <div className="pt-3">
@@ -2035,7 +2085,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     Passerelle Email & Notifications Automatiques
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Système d’envoi d'e-mails pour devis et messages de contact (SMTP, Brevo, Resend, SendGrid, Mailgun).
+                    Système d’envoi d'e-mails pour commandes et messages de contact (SMTP, Brevo, Resend, SendGrid, Mailgun).
                   </p>
                 </div>
 
@@ -2230,7 +2280,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         onChange={(e) => setNewUserForm({ ...newUserForm, role: e.target.value as any })}
                         className="w-full p-2.5 border border-slate-200 rounded-xl bg-white"
                       >
-                        <option value="EDITOR">Éditeur (Gestion devis, portfolio, contenu)</option>
+                        <option value="EDITOR">Éditeur (Gestion commandes, portfolio, contenu)</option>
                         <option value="ADMIN">Administrateur (Tous les droits)</option>
                       </select>
                     </div>

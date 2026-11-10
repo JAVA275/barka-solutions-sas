@@ -90,9 +90,9 @@ const FINITIONS_LIST = [
 ];
 
 const DELAIS_LIST = [
-  { id: 'standard', label: 'Standard (3 à 5 jours ouvrés)', extra: 'Inclus' },
-  { id: 'express', label: 'Express (24h à 48h)', extra: '+20%' },
-  { id: 'super-express', label: 'Super Express (12h - Jour même)', extra: '+40%' },
+  { id: 'standard', label: 'Dès confirmation d’impression, 2h à 3 jours', extra: 'Inclus' },
+  { id: 'express', label: 'Express prioritaire (2h à 24h)', extra: '+20%' },
+  { id: 'super-express', label: 'Urgence atelier (Dès confirmation : sous 2h)', extra: '+40%' },
 ];
 
 const LIVRAISONS_LIST = [
@@ -132,7 +132,7 @@ export const QuoteScreen: React.FC<QuoteScreenProps> = ({
     grammage: '350g/m²',
     impressionType: 'Recto/Verso',
     finition: 'Pelliculage Mat élégant',
-    delai: 'Standard (3 à 5 jours ouvrés)',
+    delai: 'Dès confirmation d’impression, 2h à 3 jours',
     livraisonOption: 'Retrait gratuit à l’agence (Derrière Resto Le Verger, Ngaoundéré)',
     graphismeOption: 'J’ai déjà mon fichier prêt pour impression (PDF / PNG / AI HD)',
     description: '',
@@ -245,6 +245,15 @@ export const QuoteScreen: React.FC<QuoteScreenProps> = ({
 
       if (res.success && res.data) {
         setSubmittedQuote(res.data);
+
+        // Store client-side copy in localStorage so Admin immediately sees the order
+        try {
+          const storedRaw = localStorage.getItem('barka_client_submitted_quotes');
+          const localList: SubmittedQuote[] = storedRaw ? JSON.parse(storedRaw) : [];
+          const updatedList = [res.data, ...localList.filter((q) => q.id !== res.data.id)].slice(0, 50);
+          localStorage.setItem('barka_client_submitted_quotes', JSON.stringify(updatedList));
+        } catch {}
+
         setSubmissionEmailStatus(
           res.emailStatus || {
             sentToAdmin: Boolean(res.sentToAdmin),
@@ -264,7 +273,7 @@ export const QuoteScreen: React.FC<QuoteScreenProps> = ({
           colors: ['#0010c2', '#d97706', '#10b981'],
         });
       } else {
-        setErrorMessage(res.error || 'Erreur lors de l’envoi de votre devis.');
+        setErrorMessage(res.error || 'Erreur lors de l’envoi de votre commande.');
       }
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Erreur de connexion';
@@ -284,16 +293,16 @@ export const QuoteScreen: React.FC<QuoteScreenProps> = ({
           </div>
 
           <div className="inline-block bg-amber-50 text-amber-900 border border-amber-200 px-4 py-1.5 rounded-full font-bold text-sm mb-4">
-            RÉFÉRENCE OFFICIELLE : {submittedQuote.id}
+            RÉFÉRENCE COMMANDE : {submittedQuote.id}
           </div>
 
           <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-3">
-            Demande de devis enregistrée avec succès !
+            Commande enregistrée avec succès !
           </h2>
 
           <div className="text-slate-600 max-w-2xl mx-auto mb-8 text-base space-y-3">
             <p>
-              Merci <strong>{submittedQuote.nomComplet}</strong>. Votre dossier a été transmis à l’équipe technique
+              Merci <strong>{submittedQuote.nomComplet}</strong>. Votre commande a été transmise à l’équipe technique
               BARKA SOLUTIONS S.A.S pour traitement prioritaire.
             </p>
             {submissionEmailStatus?.sentToClient ? (
@@ -303,7 +312,7 @@ export const QuoteScreen: React.FC<QuoteScreenProps> = ({
               </div>
             ) : submittedQuote.email ? (
               <div className="inline-flex items-center gap-2 bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-xs">
-                <span>Dossier enregistré sous la référence <strong>{submittedQuote.id}</strong>. Conservez ce numéro pour tout échange avec nos équipes.</span>
+                <span>Commande enregistrée sous la référence <strong>{submittedQuote.id}</strong>. Conservez ce numéro pour tout échange avec nos équipes.</span>
               </div>
             ) : null}
           </div>
@@ -328,7 +337,7 @@ export const QuoteScreen: React.FC<QuoteScreenProps> = ({
             <div className="flex justify-between pt-2">
               <span className="text-slate-700 font-semibold">Tarification</span>
               <span className="text-blue-900 font-extrabold text-base">
-                Sur devis personnalisé (Réponse sous 24h)
+                Sur commande personnalisée (Réponse sous 24h)
               </span>
             </div>
           </div>
@@ -390,7 +399,7 @@ export const QuoteScreen: React.FC<QuoteScreenProps> = ({
       <div className="text-center max-w-3xl mx-auto mb-10">
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-900 border border-blue-200 mb-3">
           <Sparkles className="w-3.5 h-3.5" />
-          Moteur de chiffrage direct & devis personnalisé
+          Moteur de chiffrage direct & commande en ligne
         </span>
         <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight mb-2">
           Passer une Commande sur Mesure
@@ -1043,12 +1052,12 @@ export const QuoteScreen: React.FC<QuoteScreenProps> = ({
               <div className="bg-gradient-to-b from-blue-900 to-slate-950 text-white rounded-2xl p-6 shadow-xl flex flex-col justify-between">
                 <div>
                   <div className="inline-block bg-amber-500 text-slate-950 font-extrabold text-[11px] uppercase tracking-wider px-3 py-1 rounded-full mb-4">
-                    Devis gratuit & sans engagement
+                    Commande en ligne directe
                   </div>
 
                   <span className="text-xs text-slate-300 block font-medium">Tarification globale</span>
                   <div className="text-2xl sm:text-3xl font-black text-white tracking-tight my-2">
-                    Sur devis personnalisé
+                    Sur commande personnalisée
                   </div>
 
                   <div className="text-xs text-slate-300 space-y-1.5 py-3 border-y border-white/10 my-4">

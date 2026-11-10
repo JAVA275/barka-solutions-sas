@@ -25,17 +25,17 @@ export const QuotePage: React.FC<QuotePageProps> = ({ onQuoteSubmitted }) => {
   const quoteJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'ContactPage',
-    'name': "Demande de Devis d'Imprimerie en Ligne - BARKA SOLUTIONS S.A.S",
+    'name': "Commande en Ligne Directe & Devis - BARKA SOLUTIONS S.A.S",
     'description':
-      "Calculez et soumettez votre demande de devis d'imprimerie, sérigraphie ou signalétique en quelques clics à Ngaoundéré, Cameroun.",
+      "Commandez en direct vos travaux d'imprimerie, sérigraphie ou signalétique en quelques clics à Ngaoundéré, Cameroun.",
   };
 
   return (
     <>
       <SEOHead
-        title="Demande de Devis d'Imprimerie & Sérigraphie en Ligne à Ngaoundéré"
-        description="Obtenez un devis gratuit et instantané pour vos impressions numériques, offset, sérigraphie, grands formats et signalétique avec BARKA SOLUTIONS S.A.S à Ngaoundéré."
-        keywords="devis imprimerie Ngaoundéré, estimation prix impression Ngaoundéré, devis sérigraphie Ngaoundéré, devis grand format Ngaoundéré, BARKA SOLUTIONS"
+        title="Commande en Ligne Directe d'Imprimerie & Sérigraphie à Ngaoundéré"
+        description="Passez votre commande en ligne directe et instantanée pour vos impressions numériques, offset, sérigraphie, grands formats et signalétique avec BARKA SOLUTIONS S.A.S à Ngaoundéré."
+        keywords="commande imprimerie Ngaoundéré, devis imprimerie Ngaoundéré, estimation prix impression Ngaoundéré, sérigraphie Ngaoundéré, grand format Ngaoundéré, BARKA SOLUTIONS"
         jsonLd={quoteJsonLd}
       />
       <QuoteScreen

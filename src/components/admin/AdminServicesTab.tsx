@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Plus,
   Edit2,
@@ -12,6 +12,7 @@ import {
   Search,
   Check,
   X,
+  Upload,
 } from 'lucide-react';
 import { ServiceItem, ServiceGroupId } from '../../types';
 
@@ -64,6 +65,43 @@ export const AdminServicesTab: React.FC<AdminServicesTabProps> = ({
     priceStartingAt: 5000,
     quoteTypePrestation: '',
   });
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 1200;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          setForm((prev) => ({ ...prev, image: canvas.toDataURL('image/jpeg', 0.85) }));
+        } else {
+          setForm((prev) => ({ ...prev, image: ev.target?.result as string }));
+        }
+      };
+      img.src = ev.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleOpenAdd = () => {
     setEditingService(null);
@@ -247,7 +285,7 @@ export const AdminServicesTab: React.FC<AdminServicesTabProps> = ({
                     <span className="text-[10px] text-slate-400">{srv.category}</span>
                   </td>
                   <td className="p-4 font-bold text-emerald-700">
-                    {srv.priceStartingAt ? `Dès ${srv.priceStartingAt.toLocaleString('fr-FR')} FCFA` : 'Sur devis'}
+                    {srv.priceStartingAt ? `Dès ${srv.priceStartingAt.toLocaleString('fr-FR')} FCFA` : 'Sur commande'}
                   </td>
                   <td className="p-4">
                     <button
@@ -374,26 +412,47 @@ export const AdminServicesTab: React.FC<AdminServicesTabProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Prix de départ (FCFA)</label>
-                  <input
-                    type="number"
-                    value={form.priceStartingAt}
-                    onChange={(e) => setForm({ ...form, priceStartingAt: Number(e.target.value) })}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl font-bold"
-                  />
-                </div>
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Prix de départ (FCFA)</label>
+                <input
+                  type="number"
+                  value={form.priceStartingAt}
+                  onChange={(e) => setForm({ ...form, priceStartingAt: Number(e.target.value) })}
+                  className="w-full p-2.5 border border-slate-200 rounded-xl font-bold"
+                />
+              </div>
 
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">URL de l'image</label>
-                  <input
-                    type="text"
-                    value={form.image}
-                    onChange={(e) => setForm({ ...form, image: e.target.value })}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl"
-                  />
-                </div>
+              {/* Photo du Service depuis l'appareil */}
+              <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <label className="block font-bold text-slate-700 uppercase text-xs">Photo du Service</label>
+                {form.image ? (
+                  <div className="relative aspect-video max-h-48 bg-slate-900 rounded-lg overflow-hidden border border-slate-300">
+                    <img src={form.image} alt="Aperçu" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, image: '' }))}
+                      className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-sm cursor-pointer"
+                      title="Supprimer la photo"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : null}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleImageFileSelect}
+                  accept="image/*"
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full py-2.5 px-4 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-sm transition"
+                >
+                  <Upload className="w-4 h-4 text-amber-400" />
+                  {form.image ? 'Changer la photo depuis cet appareil' : 'Charger une photo depuis cet appareil'}
+                </button>
               </div>
 
               <div>

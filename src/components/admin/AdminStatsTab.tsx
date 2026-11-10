@@ -148,14 +148,14 @@ export const AdminStatsTab: React.FC<AdminStatsTabProps> = ({
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition cursor-pointer border border-white/10 shadow-sm"
           >
             <Download className="w-4 h-4 text-amber-400" />
-            Exporter Devis (CSV)
+            Exporter Commandes (CSV)
           </button>
           <button
             onClick={() => onNavigateTab('quotes', 'NOUVEAU')}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold transition cursor-pointer shadow-md"
           >
             <FileText className="w-4 h-4" />
-            Traiter les devis ({newQuotesCount})
+            Traiter les commandes ({newQuotesCount})
           </button>
         </div>
       </div>
@@ -171,13 +171,13 @@ export const AdminStatsTab: React.FC<AdminStatsTabProps> = ({
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
-          {/* 1. Nombre de devis */}
+          {/* 1. Nombre de commandes */}
           <div
             onClick={() => onNavigateTab('quotes', 'Tous')}
             className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md hover:border-blue-900 transition cursor-pointer group flex flex-col justify-between"
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500">Nombre de devis</span>
+              <span className="text-[11px] font-bold text-slate-500">Nombre de commandes</span>
               <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-900 flex items-center justify-center group-hover:scale-110 transition">
                 <FileText className="w-4 h-4" />
               </div>
@@ -188,7 +188,7 @@ export const AdminStatsTab: React.FC<AdminStatsTabProps> = ({
             </div>
           </div>
 
-          {/* 2. Nouveaux devis */}
+          {/* 2. Nouvelles commandes */}
           <div
             onClick={() => onNavigateTab('quotes', 'NOUVEAU')}
             className={`p-4 rounded-2xl border shadow-xs hover:shadow-md transition cursor-pointer group flex flex-col justify-between ${
@@ -198,7 +198,7 @@ export const AdminStatsTab: React.FC<AdminStatsTabProps> = ({
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-amber-800">Nouveaux devis</span>
+              <span className="text-[11px] font-bold text-amber-800">Nouvelles commandes</span>
               <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center group-hover:scale-110 transition">
                 <Clock className="w-4 h-4" />
               </div>
@@ -209,13 +209,13 @@ export const AdminStatsTab: React.FC<AdminStatsTabProps> = ({
             </div>
           </div>
 
-          {/* 3. Devis en analyse */}
+          {/* 3. Commandes en analyse */}
           <div
             onClick={() => onNavigateTab('quotes', 'EN_ANALYSE')}
             className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md hover:border-blue-900 transition cursor-pointer group flex flex-col justify-between"
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-600">Devis en analyse</span>
+              <span className="text-[11px] font-bold text-slate-600">Commandes en analyse</span>
               <div className="w-7 h-7 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center group-hover:scale-110 transition">
                 <Search className="w-4 h-4" />
               </div>
@@ -226,13 +226,13 @@ export const AdminStatsTab: React.FC<AdminStatsTabProps> = ({
             </div>
           </div>
 
-          {/* 4. Devis envoyés */}
+          {/* 4. Commandes envoyées */}
           <div
             onClick={() => onNavigateTab('quotes', 'DEVIS_ENVOYE')}
             className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md hover:border-blue-900 transition cursor-pointer group flex flex-col justify-between"
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-600">Devis envoyés</span>
+              <span className="text-[11px] font-bold text-slate-600">Commandes envoyées</span>
               <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center group-hover:scale-110 transition">
                 <Send className="w-4 h-4" />
               </div>
@@ -243,13 +243,13 @@ export const AdminStatsTab: React.FC<AdminStatsTabProps> = ({
             </div>
           </div>
 
-          {/* 5. Devis acceptés */}
+          {/* 5. Commandes acceptées */}
           <div
             onClick={() => onNavigateTab('quotes', 'ACCEPTE')}
             className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md hover:border-emerald-700 transition cursor-pointer group flex flex-col justify-between"
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-emerald-800">Devis acceptés</span>
+              <span className="text-[11px] font-bold text-emerald-800">Commandes acceptées</span>
               <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:scale-110 transition">
                 <CheckCheck className="w-4 h-4" />
               </div>
@@ -385,7 +385,7 @@ export const AdminStatsTab: React.FC<AdminStatsTabProps> = ({
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold transition cursor-pointer shadow-sm"
             >
               <FileText className="w-4 h-4" />
-              Consulter la section Devis
+              Consulter la section Commandes
             </button>
           </div>
         </div>
@@ -395,8 +395,8 @@ export const AdminStatsTab: React.FC<AdminStatsTabProps> = ({
           <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Répartition par Statut de Devis</h3>
-                <p className="text-xs text-slate-500">Progression du pipeline de devis selon les 9 statuts officiels.</p>
+                <h3 className="text-base font-bold text-slate-900">Répartition par Statut des Commandes</h3>
+                <p className="text-xs text-slate-500">Progression du pipeline des commandes selon les 9 statuts officiels.</p>
               </div>
               <span className="text-xs font-bold text-slate-400">{totalQuotes} total</span>
             </div>
@@ -419,7 +419,7 @@ export const AdminStatsTab: React.FC<AdminStatsTabProps> = ({
                         <span className="font-bold text-slate-800">{info.label}</span>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-slate-500">{count} devis</span>
+                        <span className="text-slate-500">{count} commande(s)</span>
                         <span className="text-slate-900 font-bold w-10 text-right">{percentage}%</span>
                       </div>
                     </div>
@@ -448,7 +448,7 @@ export const AdminStatsTab: React.FC<AdminStatsTabProps> = ({
                     <div className="w-3 h-3 rounded-md bg-blue-900" />
                     <span className="font-bold text-slate-800">1. Imprimerie & Sérigraphie</span>
                   </div>
-                  <span className="font-black text-blue-950">{imprimerieQuotes} devis</span>
+                  <span className="font-black text-blue-950">{imprimerieQuotes} commande(s)</span>
                 </div>
 
                 <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-100 flex items-center justify-between">
@@ -456,7 +456,7 @@ export const AdminStatsTab: React.FC<AdminStatsTabProps> = ({
                     <div className="w-3 h-3 rounded-md bg-amber-500" />
                     <span className="font-bold text-slate-800">2. Communication & Branding</span>
                   </div>
-                  <span className="font-black text-amber-950">{brandingQuotes} devis</span>
+                  <span className="font-black text-amber-950">{brandingQuotes} commande(s)</span>
                 </div>
 
                 <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
@@ -464,7 +464,7 @@ export const AdminStatsTab: React.FC<AdminStatsTabProps> = ({
                     <div className="w-3 h-3 rounded-md bg-slate-700" />
                     <span className="font-bold text-slate-800">3. Solutions Pro & BTP</span>
                   </div>
-                  <span className="font-black text-slate-950">{solutionsProQuotes} devis</span>
+                  <span className="font-black text-slate-950">{solutionsProQuotes} commande(s)</span>
                 </div>
               </div>
             </div>
