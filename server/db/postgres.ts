@@ -156,7 +156,10 @@ class PostgresManager {
           await this.pool.query(
             `INSERT INTO users (id, username, email, password_hash, full_name, role, is_active, created_at, updated_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-             ON CONFLICT (username) DO NOTHING`,
+             ON CONFLICT (username) DO UPDATE SET
+               full_name = EXCLUDED.full_name,
+               email = EXCLUDED.email,
+               password_hash = EXCLUDED.password_hash`,
             [
               u.id,
               u.username,

@@ -294,7 +294,10 @@ var PostgresManager = class {
           await this.pool.query(
             `INSERT INTO users (id, username, email, password_hash, full_name, role, is_active, created_at, updated_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-             ON CONFLICT (username) DO NOTHING`,
+             ON CONFLICT (username) DO UPDATE SET
+               full_name = EXCLUDED.full_name,
+               email = EXCLUDED.email,
+               password_hash = EXCLUDED.password_hash`,
             [
               u.id,
               u.username,
@@ -1128,10 +1131,37 @@ var AsyncMutex = class {
     return willLock;
   }
 };
+var DEFAULT_USERS = [
+  {
+    id: "54b240ad-0e23-42b1-9531-78f01e32e309",
+    username: "admin",
+    email: "direction@barkasolutions.org",
+    fullName: "Administrateur Principal BARKA",
+    // Hash bcrypt pour 'BarkaAdmin@2026!'
+    passwordHash: "$2b$10$YFJu1uwT0JvKC3V/qboaierTkmOvJWLHwrS936GYOu2ujNZOO.SeS",
+    role: "ADMIN",
+    isActive: true,
+    createdAt: "2026-08-26T08:34:15.053Z",
+    updatedAt: "2026-11-10T10:59:19.553Z",
+    lastLogin: "2026-11-09T16:00:18.086Z"
+  },
+  {
+    id: "345c4630-9876-46bf-bfa5-8211ff295109",
+    username: "editor",
+    email: "kouchoumichel@yahoo.fr",
+    fullName: "\xC9diteur & Gestionnaire Atelier",
+    // Hash bcrypt pour 'BarkaEditor@2026!'
+    passwordHash: "$2b$10$49VQyW.CorC/fK.axUSn7.E3XSWnm0NyrN/moUuMqJol6ckb9BpYG",
+    role: "EDITOR",
+    isActive: true,
+    createdAt: "2026-08-26T08:34:15.053Z",
+    updatedAt: "2026-11-10T10:59:19.554Z"
+  }
+];
 var Database = class {
   constructor() {
     this.store = {
-      users: [],
+      users: [...DEFAULT_USERS],
       companySettings: { ...DEFAULT_COMPANY_SETTINGS },
       quotes: [],
       messages: [],
@@ -1562,16 +1592,16 @@ var Database = class {
     ];
   }
   async seedInitialData() {
-    const adminInitialPass = process.env.ADMIN_INITIAL_PASSWORD?.trim() || crypto3.randomBytes(16).toString("hex");
-    const editorInitialPass = process.env.EDITOR_INITIAL_PASSWORD?.trim() || crypto3.randomBytes(16).toString("hex");
-    const adminHash = await hashPassword(adminInitialPass);
-    const editorHash = await hashPassword(editorInitialPass);
+    const adminInitialPass = process.env.ADMIN_INITIAL_PASSWORD?.trim() || "BarkaAdmin@2026!";
+    const editorInitialPass = process.env.EDITOR_INITIAL_PASSWORD?.trim() || "BarkaEditor@2026!";
+    const adminHash = adminInitialPass === "BarkaAdmin@2026!" ? "$2b$10$YFJu1uwT0JvKC3V/qboaierTkmOvJWLHwrS936GYOu2ujNZOO.SeS" : await hashPassword(adminInitialPass);
+    const editorHash = editorInitialPass === "BarkaEditor@2026!" ? "$2b$10$49VQyW.CorC/fK.axUSn7.E3XSWnm0NyrN/moUuMqJol6ckb9BpYG" : await hashPassword(editorInitialPass);
     const now = (/* @__PURE__ */ new Date()).toISOString();
     if (!process.env.ADMIN_INITIAL_PASSWORD) {
       console.log("------------------------------------------------------------");
-      console.log("\u{1F510} [S\xC9CURIT\xC9] Compte Administrateur initial g\xE9n\xE9r\xE9 :");
+      console.log("\u{1F510} [S\xC9CURIT\xC9] Compte Administrateur initial initialis\xE9 :");
       console.log(`\u{1F449} Identifiant : admin | Mot de passe : ${adminInitialPass}`);
-      console.log("\u{1F449} Identifiant : editor | Mot de passe : ${editorInitialPass}");
+      console.log(`\u{1F449} Identifiant : editor | Mot de passe : ${editorInitialPass}`);
       console.log("------------------------------------------------------------");
     }
     this.store.users = [

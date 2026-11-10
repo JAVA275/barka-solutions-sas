@@ -92,9 +92,37 @@ class AsyncMutex {
   }
 }
 
+export const DEFAULT_USERS: User[] = [
+  {
+    id: '54b240ad-0e23-42b1-9531-78f01e32e309',
+    username: 'admin',
+    email: 'direction@barkasolutions.org',
+    fullName: 'Administrateur Principal BARKA',
+    // Hash bcrypt pour 'BarkaAdmin@2026!'
+    passwordHash: '$2b$10$YFJu1uwT0JvKC3V/qboaierTkmOvJWLHwrS936GYOu2ujNZOO.SeS',
+    role: 'ADMIN',
+    isActive: true,
+    createdAt: '2026-08-26T08:34:15.053Z',
+    updatedAt: '2026-11-10T10:59:19.553Z',
+    lastLogin: '2026-11-09T16:00:18.086Z',
+  },
+  {
+    id: '345c4630-9876-46bf-bfa5-8211ff295109',
+    username: 'editor',
+    email: 'kouchoumichel@yahoo.fr',
+    fullName: 'Éditeur & Gestionnaire Atelier',
+    // Hash bcrypt pour 'BarkaEditor@2026!'
+    passwordHash: '$2b$10$49VQyW.CorC/fK.axUSn7.E3XSWnm0NyrN/moUuMqJol6ckb9BpYG',
+    role: 'EDITOR',
+    isActive: true,
+    createdAt: '2026-08-26T08:34:15.053Z',
+    updatedAt: '2026-11-10T10:59:19.554Z',
+  },
+];
+
 class Database {
   private store: DatabaseStore = {
-    users: [],
+    users: [...DEFAULT_USERS],
     companySettings: { ...DEFAULT_COMPANY_SETTINGS },
     quotes: [],
     messages: [],
@@ -575,18 +603,22 @@ class Database {
   }
 
   private async seedInitialData() {
-    const adminInitialPass = process.env.ADMIN_INITIAL_PASSWORD?.trim() || crypto.randomBytes(16).toString('hex');
-    const editorInitialPass = process.env.EDITOR_INITIAL_PASSWORD?.trim() || crypto.randomBytes(16).toString('hex');
+    const adminInitialPass = process.env.ADMIN_INITIAL_PASSWORD?.trim() || 'BarkaAdmin@2026!';
+    const editorInitialPass = process.env.EDITOR_INITIAL_PASSWORD?.trim() || 'BarkaEditor@2026!';
 
-    const adminHash = await hashPassword(adminInitialPass);
-    const editorHash = await hashPassword(editorInitialPass);
+    const adminHash = adminInitialPass === 'BarkaAdmin@2026!'
+      ? '$2b$10$YFJu1uwT0JvKC3V/qboaierTkmOvJWLHwrS936GYOu2ujNZOO.SeS'
+      : await hashPassword(adminInitialPass);
+    const editorHash = editorInitialPass === 'BarkaEditor@2026!'
+      ? '$2b$10$49VQyW.CorC/fK.axUSn7.E3XSWnm0NyrN/moUuMqJol6ckb9BpYG'
+      : await hashPassword(editorInitialPass);
     const now = new Date().toISOString();
 
     if (!process.env.ADMIN_INITIAL_PASSWORD) {
       console.log('------------------------------------------------------------');
-      console.log('🔐 [SÉCURITÉ] Compte Administrateur initial généré :');
+      console.log('🔐 [SÉCURITÉ] Compte Administrateur initial initialisé :');
       console.log(`👉 Identifiant : admin | Mot de passe : ${adminInitialPass}`);
-      console.log('👉 Identifiant : editor | Mot de passe : ${editorInitialPass}');
+      console.log(`👉 Identifiant : editor | Mot de passe : ${editorInitialPass}`);
       console.log('------------------------------------------------------------');
     }
 
