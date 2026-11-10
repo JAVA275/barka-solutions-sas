@@ -4,7 +4,7 @@ import { PortfolioScreen } from '../components/PortfolioScreen';
 import { LightboxModal } from '../components/LightboxModal';
 import { SEOHead } from '../components/SEOHead';
 import { PortfolioItem, TabType } from '../types';
-import { SERVICES_DATA } from '../data/mockData';
+import { PORTFOLIO_DATA, SERVICES_DATA } from '../data/mockData';
 import { apiService } from '../services/api';
 import { tabToPath } from '../utils/navigation';
 
@@ -12,7 +12,7 @@ export const PortfolioPage: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
   const navigate = useNavigate();
 
-  const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
+  const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>(PORTFOLIO_DATA);
   const [selectedItem, setSelectedItem] = useState<PortfolioItem | null>(null);
 
   // Load portfolio items
@@ -20,12 +20,12 @@ export const PortfolioPage: React.FC = () => {
     let isMounted = true;
     const loadPortfolio = async () => {
       try {
-        const data = await apiService.getPortfolio();
-        if (isMounted && Array.isArray(data)) {
-          setPortfolioItems(data);
+        const res = await apiService.getPortfolio();
+        if (isMounted && res.success && Array.isArray(res.data) && res.data.length > 0) {
+          setPortfolioItems(res.data);
         }
       } catch {
-        // handled
+        // Fallback already in place
       }
     };
     loadPortfolio();
@@ -109,6 +109,7 @@ export const PortfolioPage: React.FC = () => {
       />
 
       <PortfolioScreen
+        initialItems={portfolioItems}
         onBack={() => navigate('/')}
         onOpenLightbox={handleOpenLightbox}
         onSelectTab={handleSelectTab}

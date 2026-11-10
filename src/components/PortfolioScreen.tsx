@@ -3,11 +3,13 @@ import { ArrowLeft, Sparkles, ZoomIn, FileText, Search, Tag, Eye, RefreshCw, Ale
 import { motion } from 'motion/react';
 import { PortfolioItem, TabType, PortfolioCategory } from '../types';
 import { apiService } from '../services/api';
+import { PORTFOLIO_DATA } from '../data/mockData';
 
 interface PortfolioScreenProps {
   onBack: () => void;
   onOpenLightbox: (item: PortfolioItem) => void;
   onSelectTab: (tab: TabType) => void;
+  initialItems?: PortfolioItem[];
 }
 
 const RECOMMENDED_CATEGORIES: (string | PortfolioCategory)[] = [
@@ -28,27 +30,30 @@ export const PortfolioScreen: React.FC<PortfolioScreenProps> = ({
   onBack,
   onOpenLightbox,
   onSelectTab,
+  initialItems,
 }) => {
-  const [items, setItems] = useState<PortfolioItem[]>([]);
+  const [items, setItems] = useState<PortfolioItem[]>(
+    initialItems && initialItems.length > 0 ? initialItems : PORTFOLIO_DATA
+  );
   const [activeCategory, setActiveCategory] = useState<string>('Tous');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(!initialItems || initialItems.length === 0);
   const [error, setError] = useState<string | null>(null);
 
   const fetchPortfolio = async () => {
-    setIsLoading(true);
-    setError(null);
     try {
       const res = await apiService.getPortfolio();
-      if (res.success && Array.isArray(res.data)) {
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         setItems(res.data);
-      } else {
-        setError(res.error || 'Impossible de charger les réalisations depuis le serveur.');
+        setError(null);
+      } else if (!items || items.length === 0) {
+        setItems(PORTFOLIO_DATA);
       }
     } catch (err: unknown) {
-      console.error('Erreur chargement portfolio:', err);
-      const msg = err instanceof Error ? err.message : 'Impossible de joindre le serveur.';
-      setError(msg);
+      console.warn('Chargement portfolio distant différé, catalogue local actif:', err);
+      if (!items || items.length === 0) {
+        setItems(PORTFOLIO_DATA);
+      }
     } finally {
       setIsLoading(false);
     }

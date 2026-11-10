@@ -6427,6 +6427,9 @@ initUploadDirectories();
 var app = express();
 app.set("trust proxy", 1);
 app.use((req, _res, next) => {
+  if (req.originalUrl && (req.url === "/api/index.js" || req.url === "/api" || !req.url.startsWith("/api"))) {
+    req.url = req.originalUrl;
+  }
   if (req.url && !req.url.startsWith("/api") && !req.url.startsWith("/uploads")) {
     req.url = "/api" + (req.url.startsWith("/") ? req.url : "/" + req.url);
   }
@@ -6462,8 +6465,8 @@ app.use("*", (req, res) => {
 });
 app.use(globalErrorHandler);
 
-// api/index.ts
-var index_default = app;
+// server/serverless.ts
+var serverless_default = app;
 export {
-  index_default as default
+  serverless_default as default
 };

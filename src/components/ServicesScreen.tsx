@@ -50,15 +50,17 @@ export const ServicesScreen: React.FC<ServicesScreenProps> = ({
     setError(null);
     try {
       const res = await apiService.getServices(false);
-      if (res.success && Array.isArray(res.data)) {
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         setServices(res.data);
-      } else {
+        setError(null);
+      } else if (!services || services.length === 0) {
         setError(res.error || 'Impossible de charger les services depuis le serveur.');
       }
     } catch (err: unknown) {
-      console.error('Erreur chargement services:', err);
-      const msg = err instanceof Error ? err.message : 'Impossible de joindre le serveur.';
-      setError(msg);
+      if (!services || services.length === 0) {
+        const msg = err instanceof Error ? err.message : 'Impossible de joindre le serveur.';
+        setError(msg);
+      }
     } finally {
       setIsLoading(false);
     }

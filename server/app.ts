@@ -25,8 +25,11 @@ export const app = express();
 app.set('trust proxy', 1);
 
 // Normalize URL for Vercel Serverless Function rewrites:
-// In some Vercel rewrite setups, the path passed to the function may be /portfolio instead of /api/portfolio
+// Under Vercel rewrites, req.url may be set to /api/index.js or /api while req.originalUrl retains /api/portfolio
 app.use((req: Request, _res: Response, next) => {
+  if (req.originalUrl && (req.url === '/api/index.js' || req.url === '/api' || !req.url.startsWith('/api'))) {
+    req.url = req.originalUrl;
+  }
   if (req.url && !req.url.startsWith('/api') && !req.url.startsWith('/uploads')) {
     req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
   }

@@ -20,9 +20,9 @@ export const ServicesPage: React.FC = () => {
     let isMounted = true;
     const loadServices = async () => {
       try {
-        const remote = await apiService.getServices(false);
-        if (isMounted && remote && remote.length > 0) {
-          setServices(remote);
+        const res = await apiService.getServices(false);
+        if (isMounted && res.success && Array.isArray(res.data) && res.data.length > 0) {
+          setServices(res.data);
         }
       } catch {
         // Fallback already in place
