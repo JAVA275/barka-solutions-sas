@@ -1,12 +1,13 @@
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import crypto from 'crypto';
 import { UploadedFileMeta } from '../types';
 import { db } from '../db/database';
 
 const isVercel = !!process.env.VERCEL;
 export const UPLOADS_ROOT = isVercel
-  ? path.join('/tmp', 'uploads')
+  ? path.join(os.tmpdir(), 'uploads')
   : path.join(process.cwd(), 'uploads');
 export const QUOTES_UPLOADS_DIR = path.join(UPLOADS_ROOT, 'quotes');
 export const PORTFOLIO_UPLOADS_DIR = path.join(UPLOADS_ROOT, 'portfolio');

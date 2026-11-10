@@ -24,6 +24,15 @@ export const app = express();
 // Configure Trust Proxy (Essential for Vercel and reverse proxies)
 app.set('trust proxy', 1);
 
+// Normalize URL for Vercel Serverless Function rewrites:
+// In some Vercel rewrite setups, the path passed to the function may be /portfolio instead of /api/portfolio
+app.use((req: Request, _res: Response, next) => {
+  if (req.url && !req.url.startsWith('/api') && !req.url.startsWith('/uploads')) {
+    req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
+  }
+  next();
+});
+
 // 1. HTTP Security Headers
 app.use(securityHeadersMiddleware);
 
@@ -45,23 +54,23 @@ app.use('/uploads/quotes', (_req: Request, res: Response) => {
   });
 });
 
-// 5. Mount API Sub-routers
-app.use('/api/auth', authRouter);
-app.use('/api/health', healthRouter);
-app.use('/api/company', companyRouter);
-app.use('/api/stats', statsRouter);
-app.use('/api/quotes', quotesRouter);
-app.use('/api/contact', contactRouter);
-app.use('/api/portfolio', portfolioRouter);
-app.use('/api/services', servicesRouter);
-app.use('/api/prices', pricesRouter);
-app.use('/api/audit', auditRouter);
+// 5. Mount API Sub-routers (Supporting both /api/path and /path for Vercel Serverless Rewrites)
+app.use(['/api/auth', '/auth'], authRouter);
+app.use(['/api/health', '/health'], healthRouter);
+app.use(['/api/company', '/company'], companyRouter);
+app.use(['/api/stats', '/stats'], statsRouter);
+app.use(['/api/quotes', '/quotes'], quotesRouter);
+app.use(['/api/contact', '/contact'], contactRouter);
+app.use(['/api/portfolio', '/portfolio'], portfolioRouter);
+app.use(['/api/services', '/services'], servicesRouter);
+app.use(['/api/prices', '/prices'], pricesRouter);
+app.use(['/api/audit', '/audit'], auditRouter);
 
-// 6. 404 handler for unmatched /api routes
-app.use('/api/*', (req: Request, res: Response) => {
+// 6. 404 handler for unmatched API routes
+app.use('*', (req: Request, res: Response) => {
   res.status(404).json({
     success: false,
-    error: `Endpoint API introuvable : ${req.method} ${req.originalUrl}`,
+    error: `Endpoint API introuvable : ${req.method} ${req.originalUrl || req.url}`,
   });
 });
 

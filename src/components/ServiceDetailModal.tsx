@@ -97,7 +97,7 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
             </button>
 
             <a
-              href={`https://wa.me/${(COMPANY_INFO.whatsapp_raw || COMPANY_INFO.whatsapp || '237696311198').replace(/\D/g, '')}?text=Bonjour%20BARKA%20SOLUTIONS%2C%20je%20souhaite%20des%20informations%20sur%20le%20service%20*${encodeURIComponent(service.title)}*.`}
+              href={`https://wa.me/${(COMPANY_INFO.whatsapp_raw || COMPANY_INFO.whatsapp || '237696311198').replace(/\D/g, '')}?text=Bonjour%20BARKA%20SOLUTIONS%2C%20je%20souhaite%20des%20informations%20sur%20le%20service%20${encodeURIComponent(service.title)}.`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm transition-colors"

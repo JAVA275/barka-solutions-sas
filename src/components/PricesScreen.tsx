@@ -129,7 +129,7 @@ export const PricesScreen: React.FC<PricesScreenProps> = ({
   }, [filteredCategories]);
 
   const handleOrderWhatsApp = (item: PriceGridItem) => {
-    const message = `Bonjour BARKA SOLUTIONS S.A.S,%0A%0AJe souhaite passer une commande ou avoir des précisions sur le produit suivant :%0A- *Produit* : ${encodeURIComponent(item.name)}%0A- *Format / Spécification* : ${encodeURIComponent(item.format || item.specs || 'Standard')}%0A- *Tarif* : Sur devis personnalisé%0A%0AMerci de m'indiquer la disponibilité et les modalités de commande à Ngaoundéré.`;
+    const message = `Bonjour BARKA SOLUTIONS S.A.S,%0A%0AJe souhaite passer une commande ou avoir des précisions sur le produit suivant :%0A- Produit : ${encodeURIComponent(item.name)}%0A- Format / Spécification : ${encodeURIComponent(item.format || item.specs || 'Standard')}%0A- Tarif : Sur devis personnalisé%0A%0AMerci de m'indiquer la disponibilité et les modalités de commande à Ngaoundéré.`;
 
     const waNumber = (COMPANY_INFO.whatsapp_raw || COMPANY_INFO.whatsapp || '237696311198').replace(/\D/g, '');
     window.open(`https://wa.me/${waNumber}?text=${message}`, '_blank');

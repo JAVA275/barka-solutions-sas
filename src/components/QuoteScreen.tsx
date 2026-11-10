@@ -382,7 +382,7 @@ export const QuoteScreen: React.FC<QuoteScreenProps> = ({
         </button>
 
         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-          Système de Devis BARKA S.A.S
+          Système de Commande BARKA S.A.S
         </span>
       </div>
 

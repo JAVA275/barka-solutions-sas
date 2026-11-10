@@ -39,7 +39,7 @@ export const ContactScreen: React.FC<ContactScreenProps> = ({ onBack }) => {
     setErrorMessage(null);
     setIsSending(true);
 
-    const waText = `Bonjour BARKA SOLUTIONS S.A.S,%0A%0AJe vous contacte depuis la page Contact :%0A- *Nom* : ${encodeURIComponent(name)}%0A- *Contact* : ${encodeURIComponent(email)}%0A- *Message* : ${encodeURIComponent(message)}%0A%0AMerci de me recontacter.`;
+    const waText = `Bonjour BARKA SOLUTIONS S.A.S,%0A%0AJe vous contacte depuis la page Contact :%0A- Nom : ${encodeURIComponent(name)}%0A- Contact : ${encodeURIComponent(email)}%0A- Message : ${encodeURIComponent(message)}%0A%0AMerci de me recontacter.`;
 
     try {
       const res = await apiService.sendContactMessage({

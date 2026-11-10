@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import crypto from 'crypto';
 import {
   User,
@@ -98,9 +99,9 @@ class Database {
     quotes: [],
     messages: [],
     portfolio: [],
-    services: [],
-    priceCategories: [],
-    testimonials: [],
+    services: [...DEFAULT_SERVICES],
+    priceCategories: [...DEFAULT_PRICE_CATEGORIES],
+    testimonials: [...DEFAULT_TESTIMONIALS],
     auditLogs: [],
     lastQuoteSequence: 0,
   };
@@ -108,21 +109,46 @@ class Database {
   private isInitialized = false;
 
   constructor() {
+    this.store.portfolio = this.getSeededPortfolio();
     this.init();
   }
 
   private async init() {
     try {
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
+      if (!process.env.VERCEL) {
+        try {
+          if (!fs.existsSync(DATA_DIR)) {
+            fs.mkdirSync(DATA_DIR, { recursive: true });
+          }
+        } catch {
+          // Ignore EROFS or filesystem permissions errors in read-only runtimes
+        }
       }
 
       // 1. Load store.json as baseline local state
-      if (fs.existsSync(DB_FILE)) {
-        const raw = fs.readFileSync(DB_FILE, 'utf-8');
-        this.store = JSON.parse(raw);
-        console.log(`[DB] 💾 Données de départ chargées (${this.store.quotes?.length || 0} devis, ${this.store.portfolio?.length || 0} réalisations, ${this.store.services?.length || 0} services)`);
-      } else {
+      let loadedFromDisk = false;
+      try {
+        if (fs.existsSync(DB_FILE)) {
+          const raw = fs.readFileSync(DB_FILE, 'utf-8');
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object') {
+            this.store = {
+              ...this.store,
+              ...parsed,
+              portfolio: Array.isArray(parsed.portfolio) && parsed.portfolio.length > 0 ? parsed.portfolio : this.getSeededPortfolio(),
+              services: Array.isArray(parsed.services) && parsed.services.length > 0 ? parsed.services : [...DEFAULT_SERVICES],
+              priceCategories: Array.isArray(parsed.priceCategories) && parsed.priceCategories.length > 0 ? parsed.priceCategories : [...DEFAULT_PRICE_CATEGORIES],
+              testimonials: Array.isArray(parsed.testimonials) && parsed.testimonials.length > 0 ? parsed.testimonials : [...DEFAULT_TESTIMONIALS],
+            };
+            loadedFromDisk = true;
+            console.log(`[DB] 💾 Données de départ chargées (${this.store.quotes?.length || 0} devis, ${this.store.portfolio?.length || 0} réalisations, ${this.store.services?.length || 0} services)`);
+          }
+        }
+      } catch (e: any) {
+        console.warn('⚠️ [DB] Lecture store.json impossible, utilisation du catalogue par défaut :', e.message);
+      }
+
+      if (!loadedFromDisk) {
         await this.seedInitialData();
         this.persist();
       }
@@ -761,9 +787,18 @@ class Database {
 
   private persist() {
     try {
+      if (process.env.VERCEL) {
+        try {
+          const tmpFile = path.join(os.tmpdir(), 'store.json');
+          fs.writeFileSync(tmpFile, JSON.stringify(this.store, null, 2), 'utf-8');
+        } catch {
+          // Gracefully retain in-memory state
+        }
+        return;
+      }
       fs.writeFileSync(DB_FILE, JSON.stringify(this.store, null, 2), 'utf-8');
-    } catch (err) {
-      console.error('[DB] Erreur écriture store.json:', err);
+    } catch (err: any) {
+      console.warn('[DB] Écriture store.json impossible (environnement en lecture seule) :', err.message);
     }
   }
 
