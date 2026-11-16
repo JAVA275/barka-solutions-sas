@@ -1182,20 +1182,25 @@ var Database = class {
       }
       let loadedFromDisk = false;
       try {
-        if (fs2.existsSync(DB_FILE)) {
-          const raw = fs2.readFileSync(DB_FILE, "utf-8");
-          const parsed = JSON.parse(raw);
-          if (parsed && typeof parsed === "object") {
-            this.store = {
-              ...this.store,
-              ...parsed,
-              portfolio: Array.isArray(parsed.portfolio) && parsed.portfolio.length > 0 ? parsed.portfolio : this.getSeededPortfolio(),
-              services: Array.isArray(parsed.services) && parsed.services.length > 0 ? parsed.services : [...DEFAULT_SERVICES],
-              priceCategories: Array.isArray(parsed.priceCategories) && parsed.priceCategories.length > 0 ? parsed.priceCategories : [...DEFAULT_PRICE_CATEGORIES],
-              testimonials: Array.isArray(parsed.testimonials) && parsed.testimonials.length > 0 ? parsed.testimonials : [...DEFAULT_TESTIMONIALS]
-            };
-            loadedFromDisk = true;
-            console.log(`[DB] \u{1F4BE} Donn\xE9es de d\xE9part charg\xE9es (${this.store.quotes?.length || 0} devis, ${this.store.portfolio?.length || 0} r\xE9alisations, ${this.store.services?.length || 0} services)`);
+        const tmpFile = path2.join(os.tmpdir(), "store.json");
+        const candidateFiles = [tmpFile, DB_FILE];
+        for (const targetFile of candidateFiles) {
+          if (fs2.existsSync(targetFile)) {
+            const raw = fs2.readFileSync(targetFile, "utf-8");
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === "object") {
+              this.store = {
+                ...this.store,
+                ...parsed,
+                portfolio: Array.isArray(parsed.portfolio) && parsed.portfolio.length > 0 ? parsed.portfolio : this.getSeededPortfolio(),
+                services: Array.isArray(parsed.services) && parsed.services.length > 0 ? parsed.services : [...DEFAULT_SERVICES],
+                priceCategories: Array.isArray(parsed.priceCategories) && parsed.priceCategories.length > 0 ? parsed.priceCategories : [...DEFAULT_PRICE_CATEGORIES],
+                testimonials: Array.isArray(parsed.testimonials) && parsed.testimonials.length > 0 ? parsed.testimonials : [...DEFAULT_TESTIMONIALS]
+              };
+              loadedFromDisk = true;
+              console.log(`[DB] \u{1F4BE} Donn\xE9es de d\xE9part charg\xE9es depuis ${path2.basename(targetFile)} (${this.store.quotes?.length || 0} devis, ${this.store.portfolio?.length || 0} r\xE9alisations, ${this.store.services?.length || 0} services)`);
+              break;
+            }
           }
         }
       } catch (e) {
@@ -2123,6 +2128,7 @@ var Database = class {
   }
   // ================= QUOTES (DEVIS) =================
   async getNextQuoteSequence(year) {
+    this.reloadFromFileIfNeeded();
     const prefix = `BKS-${year}-`;
     let maxSeq = 0;
     if (this.store.quotes && Array.isArray(this.store.quotes)) {
@@ -2152,7 +2158,17 @@ var Database = class {
         console.warn("\u26A0\uFE0F [PostgreSQL] getNextQuoteSequence lookup warning:", err);
       }
     }
-    return maxSeq + 1;
+    let nextSeq = maxSeq + 1;
+    if (!pgManager.isPgConnected() && (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME)) {
+      const now = /* @__PURE__ */ new Date();
+      const daySeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+      const timeSeq = 1e4 + daySeconds % 85e3;
+      nextSeq = Math.max(maxSeq + 1, timeSeq);
+    }
+    while ((this.store.quotes || []).some((q) => q.id === `BKS-${year}-${String(nextSeq).padStart(5, "0")}`)) {
+      nextSeq++;
+    }
+    return nextSeq;
   }
   async generateNextQuoteId(year = (/* @__PURE__ */ new Date()).getFullYear()) {
     const nextSeq = await this.getNextQuoteSequence(year);
@@ -2283,6 +2299,7 @@ var Database = class {
     return null;
   }
   async createQuote(quoteData) {
+    this.reloadFromFileIfNeeded();
     const unlock = await this.quoteLock.lock();
     try {
       const currentYear = (/* @__PURE__ */ new Date()).getFullYear();

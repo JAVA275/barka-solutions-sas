@@ -153,23 +153,28 @@ class Database {
         }
       }
 
-      // 1. Load store.json as baseline local state
+      // 1. Load store.json as baseline local state (checking /tmp on serverless environments first)
       let loadedFromDisk = false;
       try {
-        if (fs.existsSync(DB_FILE)) {
-          const raw = fs.readFileSync(DB_FILE, 'utf-8');
-          const parsed = JSON.parse(raw);
-          if (parsed && typeof parsed === 'object') {
-            this.store = {
-              ...this.store,
-              ...parsed,
-              portfolio: Array.isArray(parsed.portfolio) && parsed.portfolio.length > 0 ? parsed.portfolio : this.getSeededPortfolio(),
-              services: Array.isArray(parsed.services) && parsed.services.length > 0 ? parsed.services : [...DEFAULT_SERVICES],
-              priceCategories: Array.isArray(parsed.priceCategories) && parsed.priceCategories.length > 0 ? parsed.priceCategories : [...DEFAULT_PRICE_CATEGORIES],
-              testimonials: Array.isArray(parsed.testimonials) && parsed.testimonials.length > 0 ? parsed.testimonials : [...DEFAULT_TESTIMONIALS],
-            };
-            loadedFromDisk = true;
-            console.log(`[DB] 💾 Données de départ chargées (${this.store.quotes?.length || 0} devis, ${this.store.portfolio?.length || 0} réalisations, ${this.store.services?.length || 0} services)`);
+        const tmpFile = path.join(os.tmpdir(), 'store.json');
+        const candidateFiles = [tmpFile, DB_FILE];
+        for (const targetFile of candidateFiles) {
+          if (fs.existsSync(targetFile)) {
+            const raw = fs.readFileSync(targetFile, 'utf-8');
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object') {
+              this.store = {
+                ...this.store,
+                ...parsed,
+                portfolio: Array.isArray(parsed.portfolio) && parsed.portfolio.length > 0 ? parsed.portfolio : this.getSeededPortfolio(),
+                services: Array.isArray(parsed.services) && parsed.services.length > 0 ? parsed.services : [...DEFAULT_SERVICES],
+                priceCategories: Array.isArray(parsed.priceCategories) && parsed.priceCategories.length > 0 ? parsed.priceCategories : [...DEFAULT_PRICE_CATEGORIES],
+                testimonials: Array.isArray(parsed.testimonials) && parsed.testimonials.length > 0 ? parsed.testimonials : [...DEFAULT_TESTIMONIALS],
+              };
+              loadedFromDisk = true;
+              console.log(`[DB] 💾 Données de départ chargées depuis ${path.basename(targetFile)} (${this.store.quotes?.length || 0} devis, ${this.store.portfolio?.length || 0} réalisations, ${this.store.services?.length || 0} services)`);
+              break;
+            }
           }
         }
       } catch (e: any) {
@@ -1163,6 +1168,7 @@ class Database {
 
   // ================= QUOTES (DEVIS) =================
   private async getNextQuoteSequence(year: number): Promise<number> {
+    this.reloadFromFileIfNeeded();
     const prefix = `BKS-${year}-`;
     let maxSeq = 0;
 
@@ -1197,7 +1203,23 @@ class Database {
       }
     }
 
-    return maxSeq + 1;
+    let nextSeq = maxSeq + 1;
+
+    // 3. Fallback anti-collision for serverless environments (Vercel) when PostgreSQL is not connected:
+    // Uses monotonic second-of-day offset (10000..95000) so two independent lambdas never generate colliding IDs
+    if (!pgManager.isPgConnected() && (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME)) {
+      const now = new Date();
+      const daySeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+      const timeSeq = 10000 + (daySeconds % 85000);
+      nextSeq = Math.max(maxSeq + 1, timeSeq);
+    }
+
+    // Ensure the ID does not already exist in memory
+    while ((this.store.quotes || []).some((q) => q.id === `BKS-${year}-${String(nextSeq).padStart(5, '0')}`)) {
+      nextSeq++;
+    }
+
+    return nextSeq;
   }
 
   public async generateNextQuoteId(year: number = new Date().getFullYear()): Promise<string> {
@@ -1336,6 +1358,7 @@ class Database {
   }
 
   async createQuote(quoteData: Omit<SubmittedQuote, 'id' | 'submittedAt' | 'status'> & { id?: string; status?: QuoteStatus }): Promise<SubmittedQuote> {
+    this.reloadFromFileIfNeeded();
     const unlock = await this.quoteLock.lock();
     try {
       const currentYear = new Date().getFullYear();

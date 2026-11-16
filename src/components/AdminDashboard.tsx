@@ -260,7 +260,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       await apiService.downloadQuoteFile(quoteId, fileId, originalName);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erreur lors du téléchargement';
-      alert(msg);
+      if (
+        msg.includes('Devis introuvable') ||
+        msg.includes('Fichier non trouvé') ||
+        msg.includes('introuvable')
+      ) {
+        alert(
+          `Le fichier « ${originalName} » n'est plus disponible sur le conteneur serveur temporaire (ce devis a été créé avant la mise à jour de persistance). Les nouveaux devis sont désormais conservés directement en cache et en base de données pour un téléchargement immédiat. Vous pouvez également cliquer sur « Contacter sur WhatsApp » pour obtenir directement le fichier du client.`
+        );
+      } else {
+        alert(msg);
+      }
     } finally {
       setDownloadingFileId(null);
     }
@@ -319,10 +329,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           if (localStored) {
             const clientQuotes = JSON.parse(localStored);
             if (Array.isArray(clientQuotes)) {
-              const serverIds = new Set(allQuotes.map((q) => q.id));
               for (const cq of clientQuotes) {
-                if (cq && cq.id && !serverIds.has(cq.id)) {
-                  allQuotes.push(cq);
+                if (cq && cq.id) {
+                  const existingIdx = allQuotes.findIndex((q) => q.id === cq.id);
+                  if (existingIdx >= 0) {
+                    // Enrich server quote with local files containing dataUrl if missing on server
+                    const serverQuote = allQuotes[existingIdx];
+                    if (cq.files && cq.files.length > 0) {
+                      const enrichedFiles = (serverQuote.files || []).map((sf) => {
+                        const localFile = cq.files.find(
+                          (cf: any) => cf.originalName === sf.originalName || cf.id === sf.id
+                        );
+                        return localFile?.dataUrl ? { ...sf, dataUrl: localFile.dataUrl } : sf;
+                      });
+                      allQuotes[existingIdx] = { ...serverQuote, files: enrichedFiles };
+                    }
+                  } else {
+                    allQuotes.push(cq);
+                  }
                 }
               }
             }

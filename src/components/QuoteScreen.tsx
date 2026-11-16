@@ -245,7 +245,30 @@ export const QuoteScreen: React.FC<QuoteScreenProps> = ({
 
       if (res.success && res.data) {
         // Ensure files retain dataUrl for direct resilient downloading
-        if (res.data.files && Array.isArray(res.data.files)) {
+        if (!res.data.files || res.data.files.length === 0) {
+          if (uploadedFiles && uploadedFiles.length > 0) {
+            res.data.files = [];
+            for (const uf of uploadedFiles) {
+              try {
+                const dataUrl = await new Promise<string>((resolve, reject) => {
+                  const reader = new FileReader();
+                  reader.onload = () => resolve(reader.result as string);
+                  reader.onerror = reject;
+                  reader.readAsDataURL(uf);
+                });
+                res.data.files.push({
+                  id: uf.name,
+                  originalName: uf.name,
+                  storedName: uf.name,
+                  fileSize: uf.size,
+                  mimeType: uf.type || 'application/octet-stream',
+                  dataUrl,
+                  filePath: `/api/quotes/${res.data.id}/files/${uf.name}`,
+                });
+              } catch {}
+            }
+          }
+        } else {
           for (const f of res.data.files) {
             if (!f.dataUrl && uploadedFiles.length > 0) {
               const matchedFile = uploadedFiles.find((uf) => uf.name === f.originalName);
