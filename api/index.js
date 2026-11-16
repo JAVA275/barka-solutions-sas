@@ -1828,7 +1828,17 @@ var Database = class {
             this.store.messages = Array.from(memMap.values());
           }
           if (Array.isArray(diskStore.portfolio) && diskStore.portfolio.length > 0) {
-            this.store.portfolio = diskStore.portfolio;
+            const memMap = new Map((this.store.portfolio || []).map((p) => [p.id, p]));
+            for (const p of diskStore.portfolio) {
+              if (!memMap.has(p.id)) {
+                memMap.set(p.id, p);
+              } else {
+                memMap.set(p.id, { ...memMap.get(p.id), ...p });
+              }
+            }
+            this.store.portfolio = Array.from(memMap.values()).sort(
+              (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+            );
           }
           if (Array.isArray(diskStore.services) && diskStore.services.length > 0) {
             this.store.services = diskStore.services;
@@ -2402,7 +2412,55 @@ var Database = class {
     return false;
   }
   // ================= PORTFOLIO =================
-  getAllPortfolio(category, includeInactive = false) {
+  async getAllPortfolio(category, includeInactive = false) {
+    this.reloadFromFileIfNeeded();
+    if (pgManager.isPgConnected()) {
+      try {
+        const portfolioRes = await pgManager.query("SELECT * FROM portfolio ORDER BY created_at DESC");
+        if (portfolioRes.rows.length > 0) {
+          const pgItems = portfolioRes.rows.map((row) => ({
+            id: row.id,
+            title: row.title,
+            category: row.category,
+            categories: row.categories || [row.category],
+            description: row.description,
+            image: row.image_url,
+            images: row.images || [row.image_url],
+            client: row.client,
+            year: row.year,
+            tags: row.tags || [],
+            serviceAssocie: row.service_associe,
+            serviceId: row.service_id,
+            featured: row.featured,
+            active: row.active,
+            isDemo: row.is_demo,
+            createdAt: row.created_at?.toISOString() || (/* @__PURE__ */ new Date()).toISOString(),
+            updatedAt: row.updated_at?.toISOString() || (/* @__PURE__ */ new Date()).toISOString()
+          }));
+          const existingIds = new Set(pgItems.map((p) => p.id));
+          const unpersisted = (this.store.portfolio || []).filter((p) => !existingIds.has(p.id));
+          this.store.portfolio = [...pgItems, ...unpersisted];
+        }
+      } catch (err) {
+        console.warn("\u26A0\uFE0F [getAllPortfolio] PG query warning:", err);
+      }
+    }
+    let list = [...this.store.portfolio || []];
+    if (!includeInactive) {
+      list = list.filter((p) => p.active !== false);
+    }
+    if (category && category !== "Tous" && category !== "All") {
+      const catLower = category.toLowerCase().trim();
+      list = list.filter((p) => {
+        const directCat = (p.category || "").toLowerCase().trim();
+        const hasInCategories = Array.isArray(p.categories) && p.categories.some((c) => c.toLowerCase().trim() === catLower);
+        return directCat === catLower || hasInCategories;
+      });
+    }
+    return list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  }
+  getAllPortfolioSync(category, includeInactive = false) {
+    this.reloadFromFileIfNeeded();
     let list = [...this.store.portfolio || []];
     if (!includeInactive) {
       list = list.filter((p) => p.active !== false);
@@ -2418,7 +2476,45 @@ var Database = class {
     return list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   }
   getPortfolioById(id) {
+    this.reloadFromFileIfNeeded();
     return (this.store.portfolio || []).find((p) => p.id === id) || null;
+  }
+  async getPortfolioByIdAsync(id) {
+    const mem = this.getPortfolioById(id);
+    if (mem) return mem;
+    if (pgManager.isPgConnected()) {
+      try {
+        const res = await pgManager.query("SELECT * FROM portfolio WHERE id = $1 LIMIT 1", [id]);
+        if (res.rows.length > 0) {
+          const row = res.rows[0];
+          const item = {
+            id: row.id,
+            title: row.title,
+            category: row.category,
+            categories: row.categories || [row.category],
+            description: row.description,
+            image: row.image_url,
+            images: row.images || [row.image_url],
+            client: row.client,
+            year: row.year,
+            tags: row.tags || [],
+            serviceAssocie: row.service_associe,
+            serviceId: row.service_id,
+            featured: row.featured,
+            active: row.active,
+            isDemo: row.is_demo,
+            createdAt: row.created_at?.toISOString() || (/* @__PURE__ */ new Date()).toISOString(),
+            updatedAt: row.updated_at?.toISOString() || (/* @__PURE__ */ new Date()).toISOString()
+          };
+          if (!this.store.portfolio) this.store.portfolio = [];
+          this.store.portfolio.push(item);
+          return item;
+        }
+      } catch (err) {
+        console.warn("\u26A0\uFE0F [getPortfolioByIdAsync] PG error:", err);
+      }
+    }
+    return null;
   }
   createPortfolioItem(itemData) {
     const id = itemData.id || `port-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
@@ -6012,10 +6108,10 @@ contactRouter.delete("/:id", authenticateJWT, requireRole(["ADMIN"]), deleteMess
 import { Router as Router6 } from "express";
 
 // server/controllers/portfolioController.ts
-function listPortfolio(req, res, next) {
+async function listPortfolio(req, res, next) {
   try {
     const { category, includeInactive } = req.query;
-    const portfolio = db.getAllPortfolio(
+    const portfolio = await db.getAllPortfolio(
       category ? String(category) : void 0,
       includeInactive === "true"
     );
@@ -6028,9 +6124,9 @@ function listPortfolio(req, res, next) {
     next(err);
   }
 }
-function getPortfolioItem(req, res, next) {
+async function getPortfolioItem(req, res, next) {
   try {
-    const item = db.getPortfolioById(req.params.id);
+    const item = await db.getPortfolioByIdAsync(req.params.id);
     if (!item) {
       res.status(404).json({ success: false, error: "R\xE9alisation introuvable" });
       return;
@@ -6049,11 +6145,11 @@ function createPortfolioItem(req, res, next) {
     }
     let imageUrl = "";
     const imagesList = [];
-    if (req.file) {
-      imageUrl = `/uploads/portfolio/${req.file.filename}`;
-      imagesList.push(imageUrl);
-    } else if (req.body.image || req.body.imageUrl) {
+    if (req.body.image || req.body.imageUrl) {
       imageUrl = String(req.body.image || req.body.imageUrl);
+      imagesList.push(imageUrl);
+    } else if (req.file) {
+      imageUrl = `/uploads/portfolio/${req.file.filename}`;
       imagesList.push(imageUrl);
     }
     const newItem = db.createPortfolioItem({
@@ -6090,10 +6186,10 @@ function createPortfolioItem(req, res, next) {
     next(err);
   }
 }
-function updatePortfolioItem(req, res, next) {
+async function updatePortfolioItem(req, res, next) {
   try {
     const { id } = req.params;
-    const existing = db.getPortfolioById(id);
+    const existing = await db.getPortfolioByIdAsync(id);
     if (!existing) {
       res.status(404).json({ success: false, error: "R\xE9alisation introuvable" });
       return;

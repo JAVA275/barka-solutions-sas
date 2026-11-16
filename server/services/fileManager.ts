@@ -143,7 +143,7 @@ export function cleanOrphanFiles(): { quotesRemoved: number; portfolioRemoved: n
 
     // 2. Clean Portfolio directory
     if (fs.existsSync(PORTFOLIO_UPLOADS_DIR)) {
-      const allPortfolio = db.getAllPortfolio(undefined, true);
+      const allPortfolio = db.getAllPortfolioSync(undefined, true);
       const activePortfolioImageNames = new Set<string>();
 
       for (const p of allPortfolio) {

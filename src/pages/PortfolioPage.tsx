@@ -12,7 +12,22 @@ export const PortfolioPage: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
   const navigate = useNavigate();
 
-  const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>(PORTFOLIO_DATA);
+  const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>(() => {
+    try {
+      const localStored = localStorage.getItem('barka_portfolio_custom_items');
+      if (localStored) {
+        const clientPortfolio = JSON.parse(localStored);
+        if (Array.isArray(clientPortfolio) && clientPortfolio.length > 0) {
+          const validCustom = clientPortfolio.filter((i) => i && i.id && i.active !== false);
+          const customIds = new Set(validCustom.map((i) => i.id));
+          return [...validCustom, ...PORTFOLIO_DATA.filter((p) => !customIds.has(p.id))];
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return PORTFOLIO_DATA;
+  });
   const [selectedItem, setSelectedItem] = useState<PortfolioItem | null>(null);
 
   // Load portfolio items
@@ -21,11 +36,52 @@ export const PortfolioPage: React.FC = () => {
     const loadPortfolio = async () => {
       try {
         const res = await apiService.getPortfolio();
-        if (isMounted && res.success && Array.isArray(res.data) && res.data.length > 0) {
-          setPortfolioItems(res.data);
+        let baseItems: PortfolioItem[] = [];
+        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+          baseItems = [...res.data];
+        } else {
+          baseItems = [...PORTFOLIO_DATA];
+        }
+        try {
+          const localStored = localStorage.getItem('barka_portfolio_custom_items');
+          if (localStored) {
+            const clientPortfolio = JSON.parse(localStored);
+            if (Array.isArray(clientPortfolio)) {
+              const currentIds = new Set(baseItems.map((p) => p.id));
+              for (const cp of clientPortfolio) {
+                if (cp && cp.id && cp.active !== false && !currentIds.has(cp.id)) {
+                  baseItems.unshift(cp);
+                }
+              }
+            }
+          }
+        } catch {
+          // ignore
+        }
+        if (isMounted) {
+          setPortfolioItems(baseItems);
         }
       } catch {
-        // Fallback already in place
+        let fallback = [...PORTFOLIO_DATA];
+        try {
+          const localStored = localStorage.getItem('barka_portfolio_custom_items');
+          if (localStored) {
+            const clientPortfolio = JSON.parse(localStored);
+            if (Array.isArray(clientPortfolio)) {
+              const currentIds = new Set(fallback.map((p) => p.id));
+              for (const cp of clientPortfolio) {
+                if (cp && cp.id && cp.active !== false && !currentIds.has(cp.id)) {
+                  fallback.unshift(cp);
+                }
+              }
+            }
+          }
+        } catch {
+          // ignore
+        }
+        if (isMounted) {
+          setPortfolioItems(fallback);
+        }
       }
     };
     loadPortfolio();

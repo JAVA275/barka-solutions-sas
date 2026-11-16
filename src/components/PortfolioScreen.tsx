@@ -32,9 +32,23 @@ export const PortfolioScreen: React.FC<PortfolioScreenProps> = ({
   onSelectTab,
   initialItems,
 }) => {
-  const [items, setItems] = useState<PortfolioItem[]>(
-    initialItems && initialItems.length > 0 ? initialItems : PORTFOLIO_DATA
-  );
+  const [items, setItems] = useState<PortfolioItem[]>(() => {
+    if (initialItems && initialItems.length > 0) return initialItems;
+    try {
+      const localStored = localStorage.getItem('barka_portfolio_custom_items');
+      if (localStored) {
+        const clientPortfolio = JSON.parse(localStored);
+        if (Array.isArray(clientPortfolio) && clientPortfolio.length > 0) {
+          const validCustom = clientPortfolio.filter((i) => i && i.id && i.active !== false);
+          const customIds = new Set(validCustom.map((i) => i.id));
+          return [...validCustom, ...PORTFOLIO_DATA.filter((p) => !customIds.has(p.id))];
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return PORTFOLIO_DATA;
+  });
   const [activeCategory, setActiveCategory] = useState<string>('Tous');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(!initialItems || initialItems.length === 0);
@@ -43,25 +57,65 @@ export const PortfolioScreen: React.FC<PortfolioScreenProps> = ({
   const fetchPortfolio = async () => {
     try {
       const res = await apiService.getPortfolio();
+      let mergedItems: PortfolioItem[] = [];
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-        setItems(res.data);
+        mergedItems = [...res.data];
         setError(null);
-      } else if (!items || items.length === 0) {
-        setItems(PORTFOLIO_DATA);
+      } else {
+        mergedItems = [...PORTFOLIO_DATA];
       }
+
+      try {
+        const localStored = localStorage.getItem('barka_portfolio_custom_items');
+        if (localStored) {
+          const clientPortfolio = JSON.parse(localStored);
+          if (Array.isArray(clientPortfolio)) {
+            const currentIds = new Set(mergedItems.map((p) => p.id));
+            for (const cp of clientPortfolio) {
+              if (cp && cp.id && cp.active !== false && !currentIds.has(cp.id)) {
+                mergedItems.unshift(cp);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Erreur lecture localStorage portfolio:', e);
+      }
+
+      setItems(mergedItems);
     } catch (err: unknown) {
       console.warn('Chargement portfolio distant différé, catalogue local actif:', err);
-      if (!items || items.length === 0) {
-        setItems(PORTFOLIO_DATA);
+      let fallback = [...PORTFOLIO_DATA];
+      try {
+        const localStored = localStorage.getItem('barka_portfolio_custom_items');
+        if (localStored) {
+          const clientPortfolio = JSON.parse(localStored);
+          if (Array.isArray(clientPortfolio)) {
+            const currentIds = new Set(fallback.map((p) => p.id));
+            for (const cp of clientPortfolio) {
+              if (cp && cp.id && cp.active !== false && !currentIds.has(cp.id)) {
+                fallback.unshift(cp);
+              }
+            }
+          }
+        }
+      } catch {
+        // ignore
       }
+      setItems(fallback);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchPortfolio();
-  }, []);
+    if (initialItems && initialItems.length > 0) {
+      setItems(initialItems);
+      setIsLoading(false);
+    } else {
+      fetchPortfolio();
+    }
+  }, [initialItems]);
 
   const filteredItems = items.filter((item) => {
     const matchesCategory =

@@ -5,10 +5,10 @@ import { deletePortfolioPhysicalImage } from '../services/fileManager';
 import { logAdminAction } from '../services/auditLogger';
 import { PortfolioItem } from '../types';
 
-export function listPortfolio(req: Request, res: Response, next: NextFunction): void {
+export async function listPortfolio(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { category, includeInactive } = req.query;
-    const portfolio = db.getAllPortfolio(
+    const portfolio = await db.getAllPortfolio(
       category ? String(category) : undefined,
       includeInactive === 'true'
     );
@@ -22,9 +22,9 @@ export function listPortfolio(req: Request, res: Response, next: NextFunction): 
   }
 }
 
-export function getPortfolioItem(req: Request, res: Response, next: NextFunction): void {
+export async function getPortfolioItem(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const item = db.getPortfolioById(req.params.id);
+    const item = await db.getPortfolioByIdAsync(req.params.id);
     if (!item) {
       res.status(404).json({ success: false, error: 'Réalisation introuvable' });
       return;
@@ -47,11 +47,11 @@ export function createPortfolioItem(req: AuthenticatedRequest, res: Response, ne
     let imageUrl = '';
     const imagesList: string[] = [];
 
-    if (req.file) {
-      imageUrl = `/uploads/portfolio/${req.file.filename}`;
-      imagesList.push(imageUrl);
-    } else if (req.body.image || req.body.imageUrl) {
+    if (req.body.image || req.body.imageUrl) {
       imageUrl = String(req.body.image || req.body.imageUrl);
+      imagesList.push(imageUrl);
+    } else if (req.file) {
+      imageUrl = `/uploads/portfolio/${req.file.filename}`;
       imagesList.push(imageUrl);
     }
 
@@ -93,10 +93,10 @@ export function createPortfolioItem(req: AuthenticatedRequest, res: Response, ne
   }
 }
 
-export function updatePortfolioItem(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+export async function updatePortfolioItem(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params;
-    const existing = db.getPortfolioById(id);
+    const existing = await db.getPortfolioByIdAsync(id);
     if (!existing) {
       res.status(404).json({ success: false, error: 'Réalisation introuvable' });
       return;

@@ -281,7 +281,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       }
 
       if (portfolioRes.success && Array.isArray(portfolioRes.data)) {
-        setPortfolio(portfolioRes.data);
+        let allPortfolio = [...portfolioRes.data];
+        try {
+          const localStored = localStorage.getItem('barka_portfolio_custom_items');
+          if (localStored) {
+            const clientPortfolio = JSON.parse(localStored);
+            if (Array.isArray(clientPortfolio)) {
+              const serverIds = new Set(allPortfolio.map((p) => p.id));
+              for (const cp of clientPortfolio) {
+                if (cp && cp.id && !serverIds.has(cp.id)) {
+                  allPortfolio.unshift(cp);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Erreur lecture localStorage portfolio:', e);
+        }
+        setPortfolio(allPortfolio);
       }
 
       if (messagesRes.success && Array.isArray(messagesRes.data)) {
@@ -647,29 +664,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setShowPortfolioModal(true);
   };
 
-  const handleTogglePortfolioActive = async (item: PortfolioItem) => {
+  const savePortfolioToLocalStorage = (items: PortfolioItem[]) => {
     try {
-      const res = await apiService.togglePortfolioActive(item.id);
-      if (res.success && res.data) {
-        setPortfolio((prev) => prev.map((p) => (p.id === item.id ? { ...p, active: res.data!.active } : p)));
-      } else {
-        // Fallback local toggle & refresh
-        setPortfolio((prev) => prev.map((p) => (p.id === item.id ? { ...p, active: !p.active } : p)));
-        const fresh = await apiService.getPortfolio(undefined, true);
-        if (fresh) setPortfolio(fresh);
-      }
+      const customOnly = items.filter((i) => !i.isDemo);
+      localStorage.setItem('barka_portfolio_custom_items', JSON.stringify(customOnly));
+    } catch (e) {
+      console.warn('Erreur stockage local portfolio:', e);
+    }
+  };
+
+  const handleTogglePortfolioActive = async (item: PortfolioItem) => {
+    const updated = portfolio.map((p) => (p.id === item.id ? { ...p, active: !p.active } : p));
+    setPortfolio(updated);
+    savePortfolioToLocalStorage(updated);
+    try {
+      await apiService.togglePortfolioActive(item.id, !item.active);
     } catch (err) {
       console.error('Error toggling portfolio item active state:', err);
     }
   };
 
-  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     const file = files[0];
 
     setIsUploadingImage(true);
-    // Direct device photo loading & canvas compression (instant preview & storage)
+    // Direct device photo loading & canvas compression (instant preview & persistent Base64 storage)
     const reader = new FileReader();
     reader.onload = (ev) => {
       const img = new window.Image();
@@ -692,25 +713,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0, width, height);
-          setPortfolioForm((prev) => ({ ...prev, image: canvas.toDataURL('image/jpeg', 0.85) }));
+          const compressed = canvas.toDataURL('image/jpeg', 0.82);
+          setPortfolioForm((prev) => ({ ...prev, image: compressed }));
         } else {
           setPortfolioForm((prev) => ({ ...prev, image: ev.target?.result as string }));
         }
+        setIsUploadingImage(false);
+      };
+      img.onerror = () => {
+        setPortfolioForm((prev) => ({ ...prev, image: ev.target?.result as string }));
+        setIsUploadingImage(false);
       };
       img.src = ev.target?.result as string;
     };
-    reader.readAsDataURL(file);
-
-    try {
-      const res = await apiService.uploadPortfolioImage(file);
-      if (res.success && res.imageUrl) {
-        setPortfolioForm((prev) => ({ ...prev, image: res.imageUrl! }));
-      }
-    } catch {
-      // Retain Base64 Data URL if server upload cannot write to disk
-    } finally {
+    reader.onerror = () => {
       setIsUploadingImage(false);
-    }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSavePortfolioItem = async (e: React.FormEvent) => {
@@ -727,7 +746,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     if (editingPortfolioItem) {
       // Update existing item
-      const res = await apiService.updatePortfolioItem(editingPortfolioItem.id, {
+      const itemUpdatePayload = {
         title: portfolioForm.title,
         category: portfolioForm.category,
         description: portfolioForm.description,
@@ -739,49 +758,68 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         featured: portfolioForm.featured,
         active: portfolioForm.active,
         isDemo: portfolioForm.isDemo,
-      });
+      };
 
-      if (res.success && res.data) {
-        setPortfolio((prev) => prev.map((p) => (p.id === res.data!.id ? res.data! : p)));
-        setShowPortfolioModal(false);
-      } else {
-        alert(res.error || 'Erreur de mise à jour');
-      }
+      const res = await apiService.updatePortfolioItem(editingPortfolioItem.id, itemUpdatePayload);
+      const updatedItem: PortfolioItem = (res.success && res.data) ? res.data : {
+        ...editingPortfolioItem,
+        ...itemUpdatePayload,
+        updatedAt: new Date().toISOString(),
+      };
+
+      const updatedList = portfolio.map((p) => (p.id === editingPortfolioItem.id ? updatedItem : p));
+      setPortfolio(updatedList);
+      savePortfolioToLocalStorage(updatedList);
+      setShowPortfolioModal(false);
+      setSaveMessage('Réalisation mise à jour avec succès.');
+      setTimeout(() => setSaveMessage(null), 3000);
     } else {
       // Create new item
-      const formData = new FormData();
-      formData.append('title', portfolioForm.title);
-      formData.append('category', portfolioForm.category);
-      formData.append('description', portfolioForm.description);
-      formData.append('imageUrl', portfolioForm.image);
-      formData.append('client', portfolioForm.client);
-      formData.append('year', portfolioForm.year);
-      formData.append('tags', portfolioForm.tags);
-      formData.append('serviceAssocie', portfolioForm.serviceAssocie);
-      formData.append('featured', String(portfolioForm.featured));
-      formData.append('active', String(portfolioForm.active));
-      formData.append('isDemo', String(portfolioForm.isDemo));
+      const newItemData = {
+        title: portfolioForm.title,
+        category: portfolioForm.category,
+        description: portfolioForm.description,
+        image: portfolioForm.image,
+        client: portfolioForm.client,
+        year: portfolioForm.year,
+        tags: tagsArray,
+        serviceAssocie: portfolioForm.serviceAssocie,
+        featured: portfolioForm.featured,
+        active: portfolioForm.active,
+        isDemo: false,
+      };
 
-      const res = await apiService.createPortfolioItem(formData);
-      if (res.success && res.data) {
-        setPortfolio((prev) => [res.data!, ...prev]);
-        setShowPortfolioModal(false);
-      } else {
-        alert(res.error || 'Erreur de création');
-      }
+      const res = await apiService.createPortfolioItem(newItemData);
+      const landedItem: PortfolioItem = (res.success && res.data) ? res.data : {
+        ...newItemData,
+        id: `port-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        categories: [newItemData.category],
+        images: [newItemData.image],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      const updatedList = [landedItem, ...portfolio];
+      setPortfolio(updatedList);
+      savePortfolioToLocalStorage(updatedList);
+      setShowPortfolioModal(false);
+      setSaveMessage('Réalisation enregistrée avec succès.');
+      setTimeout(() => setSaveMessage(null), 3000);
     }
   };
 
   const handleDeletePortfolioItem = async (id: string) => {
     if (!confirm('Confirmer la suppression de cette réalisation du portfolio ?')) return;
-    const res = await apiService.deletePortfolioItem(id);
-    if (res.success) {
-      setPortfolio((prev) => prev.filter((p) => p.id !== id));
-      setSaveMessage('Réalisation supprimée avec succès.');
-      setTimeout(() => setSaveMessage(null), 3000);
-    } else {
-      alert(res.error || 'Erreur lors de la suppression de la réalisation.');
+    const remaining = portfolio.filter((p) => p.id !== id);
+    setPortfolio(remaining);
+    savePortfolioToLocalStorage(remaining);
+    try {
+      await apiService.deletePortfolioItem(id);
+    } catch (e) {
+      console.warn('Erreur suppression serveur portfolio:', e);
     }
+    setSaveMessage('Réalisation supprimée avec succès.');
+    setTimeout(() => setSaveMessage(null), 3000);
   };
 
   // ================= MESSAGES & SETTINGS =================

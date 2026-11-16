@@ -868,7 +868,17 @@ class Database {
             this.store.messages = Array.from(memMap.values());
           }
           if (Array.isArray(diskStore.portfolio) && diskStore.portfolio.length > 0) {
-            this.store.portfolio = diskStore.portfolio;
+            const memMap = new Map((this.store.portfolio || []).map((p) => [p.id, p]));
+            for (const p of diskStore.portfolio) {
+              if (!memMap.has(p.id)) {
+                memMap.set(p.id, p);
+              } else {
+                memMap.set(p.id, { ...memMap.get(p.id), ...p });
+              }
+            }
+            this.store.portfolio = Array.from(memMap.values()).sort(
+              (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+            );
           }
           if (Array.isArray(diskStore.services) && diskStore.services.length > 0) {
             this.store.services = diskStore.services;
@@ -1486,7 +1496,59 @@ class Database {
   }
 
   // ================= PORTFOLIO =================
-  getAllPortfolio(category?: string, includeInactive = false): PortfolioItem[] {
+  async getAllPortfolio(category?: string, includeInactive = false): Promise<PortfolioItem[]> {
+    this.reloadFromFileIfNeeded();
+    if (pgManager.isPgConnected()) {
+      try {
+        const portfolioRes = await pgManager.query('SELECT * FROM portfolio ORDER BY created_at DESC');
+        if (portfolioRes.rows.length > 0) {
+          const pgItems: PortfolioItem[] = portfolioRes.rows.map((row) => ({
+            id: row.id,
+            title: row.title,
+            category: row.category,
+            categories: row.categories || [row.category],
+            description: row.description,
+            image: row.image_url,
+            images: row.images || [row.image_url],
+            client: row.client,
+            year: row.year,
+            tags: row.tags || [],
+            serviceAssocie: row.service_associe,
+            serviceId: row.service_id,
+            featured: row.featured,
+            active: row.active,
+            isDemo: row.is_demo,
+            createdAt: row.created_at?.toISOString() || new Date().toISOString(),
+            updatedAt: row.updated_at?.toISOString() || new Date().toISOString(),
+          }));
+          const existingIds = new Set(pgItems.map((p) => p.id));
+          const unpersisted = (this.store.portfolio || []).filter((p) => !existingIds.has(p.id));
+          this.store.portfolio = [...pgItems, ...unpersisted];
+        }
+      } catch (err) {
+        console.warn('⚠️ [getAllPortfolio] PG query warning:', err);
+      }
+    }
+    let list = [...(this.store.portfolio || [])];
+
+    if (!includeInactive) {
+      list = list.filter((p) => p.active !== false);
+    }
+
+    if (category && category !== 'Tous' && category !== 'All') {
+      const catLower = category.toLowerCase().trim();
+      list = list.filter((p) => {
+        const directCat = (p.category || '').toLowerCase().trim();
+        const hasInCategories = Array.isArray(p.categories) && p.categories.some((c) => c.toLowerCase().trim() === catLower);
+        return directCat === catLower || hasInCategories;
+      });
+    }
+
+    return list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  }
+
+  getAllPortfolioSync(category?: string, includeInactive = false): PortfolioItem[] {
+    this.reloadFromFileIfNeeded();
     let list = [...(this.store.portfolio || [])];
 
     if (!includeInactive) {
@@ -1506,7 +1568,46 @@ class Database {
   }
 
   getPortfolioById(id: string): PortfolioItem | null {
+    this.reloadFromFileIfNeeded();
     return (this.store.portfolio || []).find((p) => p.id === id) || null;
+  }
+
+  async getPortfolioByIdAsync(id: string): Promise<PortfolioItem | null> {
+    const mem = this.getPortfolioById(id);
+    if (mem) return mem;
+    if (pgManager.isPgConnected()) {
+      try {
+        const res = await pgManager.query('SELECT * FROM portfolio WHERE id = $1 LIMIT 1', [id]);
+        if (res.rows.length > 0) {
+          const row = res.rows[0];
+          const item: PortfolioItem = {
+            id: row.id,
+            title: row.title,
+            category: row.category,
+            categories: row.categories || [row.category],
+            description: row.description,
+            image: row.image_url,
+            images: row.images || [row.image_url],
+            client: row.client,
+            year: row.year,
+            tags: row.tags || [],
+            serviceAssocie: row.service_associe,
+            serviceId: row.service_id,
+            featured: row.featured,
+            active: row.active,
+            isDemo: row.is_demo,
+            createdAt: row.created_at?.toISOString() || new Date().toISOString(),
+            updatedAt: row.updated_at?.toISOString() || new Date().toISOString(),
+          };
+          if (!this.store.portfolio) this.store.portfolio = [];
+          this.store.portfolio.push(item);
+          return item;
+        }
+      } catch (err) {
+        console.warn('⚠️ [getPortfolioByIdAsync] PG error:', err);
+      }
+    }
+    return null;
   }
 
   createPortfolioItem(itemData: Omit<PortfolioItem, 'id' | 'createdAt'> & { id?: string }): PortfolioItem {
