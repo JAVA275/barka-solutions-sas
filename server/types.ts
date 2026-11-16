@@ -39,8 +39,15 @@ export interface CompanySettings {
     whatsapp?: string;
     facebook?: string;
     linkedin?: string;
+    youtube?: string;
+    instagram?: string;
+    twitter?: string;
     email?: string;
   };
+  social_facebook?: string;
+  social_linkedin?: string;
+  social_youtube?: string;
+  social_whatsapp?: string;
 }
 
 export type PricePricingType = 'FIXED' | 'STARTING_AT' | 'CUSTOM_QUOTE';

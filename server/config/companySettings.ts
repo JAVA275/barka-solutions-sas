@@ -23,6 +23,13 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   },
   social_links: {
     whatsapp: 'https://wa.me/237696311198',
+    facebook: 'https://facebook.com',
+    linkedin: 'https://linkedin.com',
+    youtube: 'https://youtube.com',
     email: 'mailto:direction@barkasolutions.org',
   },
+  social_facebook: 'https://facebook.com',
+  social_linkedin: 'https://linkedin.com',
+  social_youtube: 'https://youtube.com',
+  social_whatsapp: 'https://wa.me/237696311198',
 };

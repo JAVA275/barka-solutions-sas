@@ -1,14 +1,35 @@
 import React from 'react';
-import { Phone, Mail, MapPin, MessageCircle, Heart } from 'lucide-react';
+import { Phone, Mail, MapPin, MessageCircle, Heart, Facebook, Youtube, Linkedin } from 'lucide-react';
 import { BarkaLogo } from './BarkaLogo';
-import { TabType } from '../types';
+import { TabType, CompanySettings } from '../types';
 import { COMPANY_INFO } from '../data/mockData';
 
 interface FooterProps {
   onSelectTab: (tab: TabType) => void;
+  companySettings?: CompanySettings;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onSelectTab }) => {
+export const Footer: React.FC<FooterProps> = ({ onSelectTab, companySettings }) => {
+  const activeCompany = companySettings || (() => {
+    try {
+      const stored = localStorage.getItem('barka_company_settings');
+      if (stored) return { ...COMPANY_INFO, ...JSON.parse(stored) };
+    } catch {
+      // ignore
+    }
+    return COMPANY_INFO;
+  })();
+
+  const facebookUrl = activeCompany.social_links?.facebook || activeCompany.social_facebook || 'https://facebook.com';
+  const youtubeUrl = activeCompany.social_links?.youtube || activeCompany.social_youtube || 'https://youtube.com';
+  const linkedinUrl = activeCompany.social_links?.linkedin || activeCompany.social_linkedin || 'https://linkedin.com';
+  const phone1 = activeCompany.phone_primary || activeCompany.phone1 || '+237 696 311 198';
+  const phone2 = activeCompany.phone_secondary || activeCompany.phone2 || '+237 690 084 142';
+  const email1 = activeCompany.email_primary || activeCompany.email1 || 'kouchoumichel@yahoo.fr';
+  const email2 = activeCompany.email_secondary || activeCompany.email2 || 'direction@barkasolutions.org';
+  const address = activeCompany.address || COMPANY_INFO.address;
+  const whatsappNum = (activeCompany.whatsapp_raw || activeCompany.whatsapp || '237696311198').replace(/\D/g, '');
+
   return (
     <footer className="bg-slate-950 text-white pt-10 sm:pt-12 pb-24 sm:pb-8 border-t border-slate-800" id="main-footer">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -88,42 +109,81 @@ export const Footer: React.FC<FooterProps> = ({ onSelectTab }) => {
             <div className="space-y-2 text-xs sm:text-sm text-slate-300">
               <div className="flex items-start gap-2.5">
                 <MapPin className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
-                <span>{COMPANY_INFO.address}</span>
+                <span>{address}</span>
               </div>
               <div className="flex items-start gap-2.5">
                 <Phone className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
                 <div className="flex flex-col">
-                  <a href={`tel:${COMPANY_INFO.phone1}`} className="hover:text-orange-400">
-                    {COMPANY_INFO.phone1}
+                  <a href={`tel:${phone1.replace(/\s+/g, '')}`} className="hover:text-orange-400">
+                    {phone1}
                   </a>
-                  <a href={`tel:${COMPANY_INFO.phone2}`} className="hover:text-orange-400">
-                    {COMPANY_INFO.phone2}
-                  </a>
+                  {phone2 && (
+                    <a href={`tel:${phone2.replace(/\s+/g, '')}`} className="hover:text-orange-400">
+                      {phone2}
+                    </a>
+                  )}
                 </div>
               </div>
               <div className="flex items-start gap-2.5">
                 <Mail className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
                 <div className="flex flex-col">
-                  <a href={`mailto:${COMPANY_INFO.email1}`} className="hover:text-orange-400 truncate">
-                    {COMPANY_INFO.email1}
+                  <a href={`mailto:${email1}`} className="hover:text-orange-400 truncate">
+                    {email1}
                   </a>
-                  <a href={`mailto:${COMPANY_INFO.email2}`} className="hover:text-orange-400 truncate">
-                    {COMPANY_INFO.email2}
-                  </a>
+                  {email2 && (
+                    <a href={`mailto:${email2}`} className="hover:text-orange-400 truncate">
+                      {email2}
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 flex flex-col gap-2.5">
               <a
-                href={`https://wa.me/${(COMPANY_INFO.whatsapp_raw || COMPANY_INFO.whatsapp || '237696311198').replace(/\D/g, '')}?text=Bonjour%20BARKA%20SOLUTIONS%2C%20je%20souhaite%20des%20informations.`}
+                href={`https://wa.me/${whatsappNum}?text=Bonjour%20BARKA%20SOLUTIONS%2C%20je%20souhaite%20des%20informations.`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors"
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors w-fit"
               >
                 <MessageCircle className="w-3.5 h-3.5" />
-                <span>WhatsApp : {COMPANY_INFO.phone1}</span>
+                <span>WhatsApp : {phone1}</span>
               </a>
+
+              {/* Social Media Links */}
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-[11px] text-slate-400 font-semibold mr-1">Suivez-nous :</span>
+                <a
+                  href={facebookUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Facebook"
+                  title="Page Facebook officielle"
+                  className="w-7 h-7 rounded-full bg-slate-900 hover:bg-blue-600 text-slate-300 hover:text-white transition-colors flex items-center justify-center text-xs border border-slate-800"
+                >
+                  <Facebook className="w-3.5 h-3.5 fill-current" />
+                </a>
+                <a
+                  href={youtubeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="YouTube"
+                  title="Chaîne YouTube officielle"
+                  className="w-7 h-7 rounded-full bg-slate-900 hover:bg-red-600 text-slate-300 hover:text-white transition-colors flex items-center justify-center text-xs border border-slate-800"
+                >
+                  <Youtube className="w-3.5 h-3.5 fill-current" />
+                </a>
+                <a
+                  href={linkedinUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="LinkedIn"
+                  title="Page LinkedIn officielle"
+                  className="w-7 h-7 rounded-full bg-slate-900 hover:bg-blue-500 text-slate-300 hover:text-white transition-colors flex items-center justify-center text-xs border border-slate-800"
+                >
+                  <Linkedin className="w-3.5 h-3.5 fill-current" />
+                </a>
+              </div>
             </div>
           </div>
         </div>

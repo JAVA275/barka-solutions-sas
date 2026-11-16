@@ -43,8 +43,15 @@ export interface CompanySettings {
     whatsapp?: string;
     facebook?: string;
     linkedin?: string;
+    youtube?: string;
+    instagram?: string;
+    twitter?: string;
     email?: string;
   };
+  social_facebook?: string;
+  social_linkedin?: string;
+  social_youtube?: string;
+  social_whatsapp?: string;
 
   // Backward compatibility helpers
   name?: string;

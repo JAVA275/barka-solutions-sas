@@ -281,6 +281,7 @@ class Database {
       const companyRes = await pgManager.query('SELECT * FROM company_settings LIMIT 1');
       if (companyRes.rows.length > 0) {
         const row = companyRes.rows[0];
+        const rowSocial = row.social_links || DEFAULT_COMPANY_SETTINGS.social_links;
         this.store.companySettings = {
           company_name: row.company_name,
           legal_name: row.legal_name,
@@ -298,7 +299,11 @@ class Database {
           website: row.website || '',
           logo: row.logo_url || '/assets/logo-barka.png',
           opening_hours: row.opening_hours || DEFAULT_COMPANY_SETTINGS.opening_hours,
-          social_links: row.social_links || DEFAULT_COMPANY_SETTINGS.social_links,
+          social_links: rowSocial,
+          social_facebook: rowSocial.facebook,
+          social_linkedin: rowSocial.linkedin,
+          social_youtube: rowSocial.youtube,
+          social_whatsapp: rowSocial.whatsapp,
         };
       }
 
@@ -1107,6 +1112,16 @@ class Database {
   }
 
   updateCompanySettings(settings: Partial<CompanySettings>): CompanySettings {
+    const prevSocial = this.store.companySettings?.social_links || DEFAULT_COMPANY_SETTINGS.social_links;
+    const mergedSocial = {
+      ...prevSocial,
+      ...(settings.social_links || {}),
+    };
+    if (settings.social_facebook !== undefined) mergedSocial.facebook = settings.social_facebook;
+    if (settings.social_linkedin !== undefined) mergedSocial.linkedin = settings.social_linkedin;
+    if (settings.social_youtube !== undefined) mergedSocial.youtube = settings.social_youtube;
+    if (settings.social_whatsapp !== undefined) mergedSocial.whatsapp = settings.social_whatsapp;
+
     this.store.companySettings = {
       ...this.store.companySettings,
       ...settings,
@@ -1114,10 +1129,11 @@ class Database {
         ...this.store.companySettings.opening_hours,
         ...(settings.opening_hours || {}),
       },
-      social_links: {
-        ...this.store.companySettings.social_links,
-        ...(settings.social_links || {}),
-      },
+      social_links: mergedSocial,
+      social_facebook: mergedSocial.facebook,
+      social_linkedin: mergedSocial.linkedin,
+      social_youtube: mergedSocial.youtube,
+      social_whatsapp: mergedSocial.whatsapp,
     };
 
     if (pgManager.isPgConnected()) {

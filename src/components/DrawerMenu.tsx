@@ -10,10 +10,13 @@ import {
   Mail,
   Phone,
   MessageCircle,
+  Facebook,
+  Youtube,
+  Linkedin,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BarkaLogo } from './BarkaLogo';
-import { TabType } from '../types';
+import { TabType, CompanySettings } from '../types';
 import { COMPANY_INFO } from '../data/mockData';
 
 interface DrawerMenuProps {
@@ -21,6 +24,7 @@ interface DrawerMenuProps {
   onClose: () => void;
   activeTab: TabType;
   onSelectTab: (tab: TabType) => void;
+  companySettings?: CompanySettings;
 }
 
 export const DrawerMenu: React.FC<DrawerMenuProps> = ({
@@ -28,7 +32,23 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
   onClose,
   activeTab,
   onSelectTab,
+  companySettings,
 }) => {
+  const activeCompany = companySettings || (() => {
+    try {
+      const stored = localStorage.getItem('barka_company_settings');
+      if (stored) return { ...COMPANY_INFO, ...JSON.parse(stored) };
+    } catch {
+      // ignore
+    }
+    return COMPANY_INFO;
+  })();
+
+  const facebookUrl = activeCompany.social_links?.facebook || activeCompany.social_facebook || 'https://facebook.com';
+  const youtubeUrl = activeCompany.social_links?.youtube || activeCompany.social_youtube || 'https://youtube.com';
+  const linkedinUrl = activeCompany.social_links?.linkedin || activeCompany.social_linkedin || 'https://linkedin.com';
+  const phone1 = activeCompany.phone_primary || activeCompany.phone1 || '+237 696 311 198';
+  const whatsappNum = (activeCompany.whatsapp_raw || activeCompany.whatsapp || '237696311198').replace(/\D/g, '');
   const menuItems = [
     { id: 'accueil' as TabType, label: 'Accueil', icon: Home },
     { id: 'services' as TabType, label: 'Nos services', icon: LayoutGrid },
@@ -113,17 +133,17 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
             <div className="p-6 border-t border-slate-800 bg-slate-950/60 space-y-3">
               {/* Direct Phone Call Button */}
               <a
-                href={`tel:${COMPANY_INFO.phone1}`}
+                href={`tel:${phone1.replace(/\s+/g, '')}`}
                 id="drawer-phone-btn"
                 className="flex items-center justify-center gap-3 w-full py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs sm:text-sm transition-colors border border-slate-700"
               >
                 <Phone className="w-4 h-4 text-orange-400" />
-                <span>{COMPANY_INFO.phone1}</span>
+                <span>{phone1}</span>
               </a>
 
               {/* Direct WhatsApp Button */}
               <a
-                href={`https://wa.me/${(COMPANY_INFO.whatsapp_raw || COMPANY_INFO.whatsapp || '237696311198').replace(/\D/g, '')}?text=Bonjour%20BARKA%20SOLUTIONS%2C%20je%20souhaite%20obtenir%20des%20informations.`}
+                href={`https://wa.me/${whatsappNum}?text=Bonjour%20BARKA%20SOLUTIONS%2C%20je%20souhaite%20obtenir%20des%20informations.`}
                 target="_blank"
                 rel="noopener noreferrer"
                 id="drawer-wa-btn"
@@ -132,6 +152,40 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
                 <MessageCircle className="w-4 h-4 text-white" />
                 <span>WhatsApp direct</span>
               </a>
+
+              {/* Social Links Row */}
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <a
+                  href={facebookUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Facebook"
+                  title="Page Facebook officielle"
+                  className="w-8 h-8 rounded-full bg-slate-800 text-slate-300 hover:bg-blue-600 hover:text-white transition-colors flex items-center justify-center text-xs border border-slate-700"
+                >
+                  <Facebook className="w-4 h-4 fill-current" />
+                </a>
+                <a
+                  href={youtubeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="YouTube"
+                  title="Chaîne YouTube officielle"
+                  className="w-8 h-8 rounded-full bg-slate-800 text-slate-300 hover:bg-red-600 hover:text-white transition-colors flex items-center justify-center text-xs border border-slate-700"
+                >
+                  <Youtube className="w-4 h-4 fill-current" />
+                </a>
+                <a
+                  href={linkedinUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="LinkedIn"
+                  title="Page LinkedIn officielle"
+                  className="w-8 h-8 rounded-full bg-slate-800 text-slate-300 hover:bg-blue-500 hover:text-white transition-colors flex items-center justify-center text-xs border border-slate-700"
+                >
+                  <Linkedin className="w-4 h-4 fill-current" />
+                </a>
+              </div>
 
               <p className="text-[11px] text-center text-slate-500 pt-1">
                 © 2026 BARKA SOLUTIONS S.A.S — Ngaoundéré

@@ -24,11 +24,13 @@ export function updateCompanySettings(req: AuthenticatedRequest, res: Response, 
       'company_name',
       'legal_name',
       'slogan',
+      'tagline',
       'description',
       'niu',
       'rccm',
       'address_line1',
       'address_line2',
+      'address',
       'city',
       'region',
       'country',
@@ -37,13 +39,19 @@ export function updateCompanySettings(req: AuthenticatedRequest, res: Response, 
       'phone_primary',
       'phone_secondary',
       'phone_workshop',
+      'whatsapp',
       'whatsapp_number',
+      'whatsapp_raw',
       'email_primary',
+      'email_secondary',
       'email_quote',
       'email_support',
+      'website',
+      'logo',
       'opening_hours_weekday',
       'opening_hours_saturday',
       'opening_hours_sunday',
+      'opening_hours',
       'emergency_service',
       'turnaround_standard',
       'turnaround_express',
@@ -52,6 +60,9 @@ export function updateCompanySettings(req: AuthenticatedRequest, res: Response, 
       'social_instagram',
       'social_linkedin',
       'social_twitter',
+      'social_youtube',
+      'social_whatsapp',
+      'social_links',
       'gps_latitude',
       'gps_longitude',
       'google_maps_url',
@@ -63,6 +74,22 @@ export function updateCompanySettings(req: AuthenticatedRequest, res: Response, 
         cleanPayload[key] = req.body[key];
       }
     }
+
+    // Build or sync social_links structure
+    const socialLinks = {
+      ...(oldSettings.social_links || {}),
+      ...(req.body.social_links || {}),
+    };
+    if (req.body.social_facebook !== undefined) socialLinks.facebook = req.body.social_facebook;
+    if (req.body.social_linkedin !== undefined) socialLinks.linkedin = req.body.social_linkedin;
+    if (req.body.social_youtube !== undefined) socialLinks.youtube = req.body.social_youtube;
+    if (req.body.social_whatsapp !== undefined) socialLinks.whatsapp = req.body.social_whatsapp;
+
+    cleanPayload.social_links = socialLinks;
+    cleanPayload.social_facebook = socialLinks.facebook;
+    cleanPayload.social_linkedin = socialLinks.linkedin;
+    cleanPayload.social_youtube = socialLinks.youtube;
+    cleanPayload.social_whatsapp = socialLinks.whatsapp;
 
     const updated = db.updateCompanySettings(cleanPayload);
 

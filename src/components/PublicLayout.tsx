@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Header } from './Header';
@@ -9,12 +9,44 @@ import { ScrollProgressBar } from './ScrollProgressBar';
 import { FloatingWhatsApp } from './FloatingWhatsApp';
 import { Preloader } from './Preloader';
 import { pathToTab, tabToPath } from '../utils/navigation';
-import { TabType } from '../types';
+import { TabType, CompanySettings } from '../types';
+import { COMPANY_SETTINGS } from '../config/companySettings';
+import { apiService } from '../services/api';
 
 export const PublicLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Dynamic company settings with immediate localStorage cache
+  const [companySettings, setCompanySettings] = useState<CompanySettings>(() => {
+    try {
+      const stored = localStorage.getItem('barka_company_settings');
+      if (stored) return { ...COMPANY_SETTINGS, ...JSON.parse(stored) };
+    } catch {
+      // ignore
+    }
+    return COMPANY_SETTINGS;
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    apiService.getCompanyInfo().then((res) => {
+      if (isMounted && res.success && res.data) {
+        setCompanySettings(res.data);
+        try {
+          localStorage.setItem('barka_company_settings', JSON.stringify(res.data));
+        } catch {
+          // ignore
+        }
+      }
+    }).catch((err) => {
+      console.warn('Chargement des paramètres entreprise différé:', err);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const activeTab = pathToTab(location.pathname);
 
@@ -36,6 +68,7 @@ export const PublicLayout: React.FC = () => {
         onOpenMenu={() => setIsMenuOpen(true)}
         activeTab={activeTab}
         onSelectTab={handleSelectTab}
+        companySettings={companySettings}
       />
 
       {/* Main Dynamic View Area with smooth page transition */}
@@ -54,7 +87,7 @@ export const PublicLayout: React.FC = () => {
       <FloatingWhatsApp />
 
       {/* Desktop & Mobile Footer */}
-      <Footer onSelectTab={handleSelectTab} />
+      <Footer onSelectTab={handleSelectTab} companySettings={companySettings} />
 
       {/* Persistent Bottom Navigation Bar on Small Screens (Fixed Bottom with Safe Area) */}
       <BottomNav activeTab={activeTab} onSelectTab={handleSelectTab} />
@@ -65,6 +98,7 @@ export const PublicLayout: React.FC = () => {
         onClose={() => setIsMenuOpen(false)}
         activeTab={activeTab}
         onSelectTab={handleSelectTab}
+        companySettings={companySettings}
       />
     </div>
   );

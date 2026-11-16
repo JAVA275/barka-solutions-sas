@@ -156,8 +156,15 @@ var DEFAULT_COMPANY_SETTINGS = {
   },
   social_links: {
     whatsapp: "https://wa.me/237696311198",
+    facebook: "https://facebook.com",
+    linkedin: "https://linkedin.com",
+    youtube: "https://youtube.com",
     email: "mailto:direction@barkasolutions.org"
-  }
+  },
+  social_facebook: "https://facebook.com",
+  social_linkedin: "https://linkedin.com",
+  social_youtube: "https://youtube.com",
+  social_whatsapp: "https://wa.me/237696311198"
 };
 
 // server/services/auth.ts
@@ -1275,6 +1282,7 @@ var Database = class {
       const companyRes = await pgManager.query("SELECT * FROM company_settings LIMIT 1");
       if (companyRes.rows.length > 0) {
         const row = companyRes.rows[0];
+        const rowSocial = row.social_links || DEFAULT_COMPANY_SETTINGS.social_links;
         this.store.companySettings = {
           company_name: row.company_name,
           legal_name: row.legal_name,
@@ -1292,7 +1300,11 @@ var Database = class {
           website: row.website || "",
           logo: row.logo_url || "/assets/logo-barka.png",
           opening_hours: row.opening_hours || DEFAULT_COMPANY_SETTINGS.opening_hours,
-          social_links: row.social_links || DEFAULT_COMPANY_SETTINGS.social_links
+          social_links: rowSocial,
+          social_facebook: rowSocial.facebook,
+          social_linkedin: rowSocial.linkedin,
+          social_youtube: rowSocial.youtube,
+          social_whatsapp: rowSocial.whatsapp
         };
       }
       const servicesRes = await pgManager.query("SELECT * FROM services ORDER BY created_at ASC");
@@ -2054,6 +2066,15 @@ var Database = class {
     return { ...this.store.companySettings };
   }
   updateCompanySettings(settings) {
+    const prevSocial = this.store.companySettings?.social_links || DEFAULT_COMPANY_SETTINGS.social_links;
+    const mergedSocial = {
+      ...prevSocial,
+      ...settings.social_links || {}
+    };
+    if (settings.social_facebook !== void 0) mergedSocial.facebook = settings.social_facebook;
+    if (settings.social_linkedin !== void 0) mergedSocial.linkedin = settings.social_linkedin;
+    if (settings.social_youtube !== void 0) mergedSocial.youtube = settings.social_youtube;
+    if (settings.social_whatsapp !== void 0) mergedSocial.whatsapp = settings.social_whatsapp;
     this.store.companySettings = {
       ...this.store.companySettings,
       ...settings,
@@ -2061,10 +2082,11 @@ var Database = class {
         ...this.store.companySettings.opening_hours,
         ...settings.opening_hours || {}
       },
-      social_links: {
-        ...this.store.companySettings.social_links,
-        ...settings.social_links || {}
-      }
+      social_links: mergedSocial,
+      social_facebook: mergedSocial.facebook,
+      social_linkedin: mergedSocial.linkedin,
+      social_youtube: mergedSocial.youtube,
+      social_whatsapp: mergedSocial.whatsapp
     };
     if (pgManager.isPgConnected()) {
       const cs = this.store.companySettings;
@@ -4942,11 +4964,13 @@ function updateCompanySettings(req, res, next) {
       "company_name",
       "legal_name",
       "slogan",
+      "tagline",
       "description",
       "niu",
       "rccm",
       "address_line1",
       "address_line2",
+      "address",
       "city",
       "region",
       "country",
@@ -4955,13 +4979,19 @@ function updateCompanySettings(req, res, next) {
       "phone_primary",
       "phone_secondary",
       "phone_workshop",
+      "whatsapp",
       "whatsapp_number",
+      "whatsapp_raw",
       "email_primary",
+      "email_secondary",
       "email_quote",
       "email_support",
+      "website",
+      "logo",
       "opening_hours_weekday",
       "opening_hours_saturday",
       "opening_hours_sunday",
+      "opening_hours",
       "emergency_service",
       "turnaround_standard",
       "turnaround_express",
@@ -4970,6 +5000,9 @@ function updateCompanySettings(req, res, next) {
       "social_instagram",
       "social_linkedin",
       "social_twitter",
+      "social_youtube",
+      "social_whatsapp",
+      "social_links",
       "gps_latitude",
       "gps_longitude",
       "google_maps_url"
@@ -4980,6 +5013,19 @@ function updateCompanySettings(req, res, next) {
         cleanPayload[key] = req.body[key];
       }
     }
+    const socialLinks = {
+      ...oldSettings.social_links || {},
+      ...req.body.social_links || {}
+    };
+    if (req.body.social_facebook !== void 0) socialLinks.facebook = req.body.social_facebook;
+    if (req.body.social_linkedin !== void 0) socialLinks.linkedin = req.body.social_linkedin;
+    if (req.body.social_youtube !== void 0) socialLinks.youtube = req.body.social_youtube;
+    if (req.body.social_whatsapp !== void 0) socialLinks.whatsapp = req.body.social_whatsapp;
+    cleanPayload.social_links = socialLinks;
+    cleanPayload.social_facebook = socialLinks.facebook;
+    cleanPayload.social_linkedin = socialLinks.linkedin;
+    cleanPayload.social_youtube = socialLinks.youtube;
+    cleanPayload.social_whatsapp = socialLinks.whatsapp;
     const updated = db.updateCompanySettings(cleanPayload);
     logAdminAction({
       req,

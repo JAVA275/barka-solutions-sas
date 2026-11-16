@@ -40,6 +40,12 @@ import {
   Layers,
   Send,
   RefreshCw,
+  Facebook,
+  Youtube,
+  Linkedin,
+  Share2,
+  Maximize2,
+  ZoomIn,
 } from 'lucide-react';
 import {
   AuthUser,
@@ -160,6 +166,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [showPortfolioModal, setShowPortfolioModal] = useState<boolean>(false);
   const [editingPortfolioItem, setEditingPortfolioItem] = useState<PortfolioItem | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
+  const [previewImageModal, setPreviewImageModal] = useState<{ src: string; title: string } | null>(null);
 
   // Portfolio Form State
   const [portfolioForm, setPortfolioForm] = useState<{
@@ -313,7 +320,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       }
 
       if (companyRes.success && companyRes.data) {
-        setCompanySettings(companyRes.data);
+        let mergedCompany = { ...companyRes.data };
+        try {
+          const stored = localStorage.getItem('barka_company_settings');
+          if (stored) {
+            mergedCompany = { ...mergedCompany, ...JSON.parse(stored) };
+          }
+        } catch {
+          // ignore
+        }
+        setCompanySettings(mergedCompany);
       }
 
       if (servicesRes.success && Array.isArray(servicesRes.data)) {
@@ -853,12 +869,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleSaveCompanySettings = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAdmin) return;
+    try {
+      localStorage.setItem('barka_company_settings', JSON.stringify(companySettings));
+    } catch {
+      // ignore
+    }
     const res = await apiService.updateCompanyInfo(companySettings);
     if (res.success && res.data) {
       setCompanySettings(res.data);
+      try {
+        localStorage.setItem('barka_company_settings', JSON.stringify(res.data));
+      } catch {
+        // ignore
+      }
       setSaveMessage('Paramètres de l’entreprise sauvegardés avec succès.');
-      setTimeout(() => setSaveMessage(null), 3000);
+    } else {
+      setSaveMessage(res.error || 'Paramètres sauvegardés localement.');
     }
+    setTimeout(() => setSaveMessage(null), 3000);
   };
 
   const handleCreateUser = async (e: React.FormEvent) => {
@@ -1556,9 +1584,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   } overflow-hidden shadow-xs hover:shadow-md transition flex flex-col justify-between`}
                 >
                   <div>
-                    {/* Image Preview */}
-                    <div className="relative aspect-16/10 bg-slate-900">
-                      <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                    {/* Image Preview - Click to view in entirety */}
+                    <div
+                      className="relative aspect-16/10 bg-slate-900 group cursor-pointer overflow-hidden"
+                      onClick={() => setPreviewImageModal({ src: item.image, title: item.title })}
+                      title="Cliquer pour afficher l'image dans son intégralité"
+                    >
+                      <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+                      <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="px-2.5 py-1 bg-black/80 text-white text-[11px] font-bold rounded-full flex items-center gap-1.5 backdrop-blur-xs shadow-md border border-white/20">
+                          <ZoomIn className="w-3.5 h-3.5 text-amber-400" />
+                          Afficher en grand
+                        </span>
+                      </div>
                       <div className="absolute top-2.5 left-2.5 bg-blue-950/80 text-amber-400 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded">
                         {item.category}
                       </div>
@@ -1721,14 +1759,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
                       <label className="block font-bold text-slate-700 uppercase text-xs">Photo de la réalisation *</label>
 
-                      {/* Image Preview */}
+                      {/* Image Preview - Click to view in entirety */}
                       {portfolioForm.image ? (
-                        <div className="relative aspect-16/9 bg-slate-900 rounded-lg overflow-hidden border border-slate-300 mb-2">
-                          <img src={portfolioForm.image} alt="Aperçu" className="w-full h-full object-cover" />
+                        <div
+                          className="relative aspect-16/9 bg-slate-900 rounded-lg overflow-hidden border border-slate-300 mb-2 cursor-pointer group"
+                          onClick={() => setPreviewImageModal({ src: portfolioForm.image, title: portfolioForm.title || 'Aperçu photo' })}
+                          title="Cliquer pour afficher l'image intégrale en grand"
+                        >
+                          <img src={portfolioForm.image} alt="Aperçu" className="w-full h-full object-contain mx-auto" />
+                          <div className="absolute inset-0 bg-slate-950/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span className="px-2.5 py-1 bg-black/75 text-white text-[10px] font-bold rounded-full flex items-center gap-1 backdrop-blur-xs">
+                              <ZoomIn className="w-3 h-3 text-amber-400" />
+                              Voir l'image intégrale
+                            </span>
+                          </div>
                           <button
                             type="button"
-                            onClick={() => setPortfolioForm((prev) => ({ ...prev, image: '' }))}
-                            className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-sm cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPortfolioForm((prev) => ({ ...prev, image: '' }));
+                            }}
+                            className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-sm cursor-pointer z-10"
                             title="Supprimer la photo"
                           >
                             <X className="w-4 h-4" />
@@ -2101,6 +2152,99 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm"
                   />
                 </div>
+
+                {/* Section: Réseaux Sociaux & Liens Publics (Facebook, LinkedIn, YouTube) */}
+                <div className="md:col-span-2 pt-5 border-t border-slate-200">
+                  <div className="mb-4">
+                    <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                      <Share2 className="w-4 h-4 text-blue-900" />
+                      Réseaux Sociaux & Liens Publics (Facebook, LinkedIn, YouTube)
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Modifiez directement les liens vers vos réseaux officiels. Ils sont automatiquement mis à jour dans l'en-tête (Header) et le pied de page (Footer) du site public.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    {/* Facebook */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1 flex items-center gap-1.5">
+                        <Facebook className="w-3.5 h-3.5 text-blue-600 fill-current" />
+                        <span>Page Facebook</span>
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://facebook.com/..."
+                        value={companySettings.social_links?.facebook || companySettings.social_facebook || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCompanySettings({
+                            ...companySettings,
+                            social_facebook: val,
+                            social_links: {
+                              ...companySettings.social_links,
+                              facebook: val,
+                            },
+                          });
+                        }}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none"
+                      />
+                      <span className="text-[10px] text-slate-400 mt-1 block">Ex: https://facebook.com/votrepage</span>
+                    </div>
+
+                    {/* LinkedIn */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1 flex items-center gap-1.5">
+                        <Linkedin className="w-3.5 h-3.5 text-blue-700 fill-current" />
+                        <span>Page / Profil LinkedIn</span>
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://linkedin.com/company/..."
+                        value={companySettings.social_links?.linkedin || companySettings.social_linkedin || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCompanySettings({
+                            ...companySettings,
+                            social_linkedin: val,
+                            social_links: {
+                              ...companySettings.social_links,
+                              linkedin: val,
+                            },
+                          });
+                        }}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
+                      />
+                      <span className="text-[10px] text-slate-400 mt-1 block">Ex: https://linkedin.com/company/barka</span>
+                    </div>
+
+                    {/* YouTube */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1 flex items-center gap-1.5">
+                        <Youtube className="w-3.5 h-3.5 text-red-600 fill-current" />
+                        <span>Chaîne YouTube</span>
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://youtube.com/@..."
+                        value={companySettings.social_links?.youtube || companySettings.social_youtube || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCompanySettings({
+                            ...companySettings,
+                            social_youtube: val,
+                            social_links: {
+                              ...companySettings.social_links,
+                              youtube: val,
+                            },
+                          });
+                        }}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white focus:border-red-600 focus:ring-1 focus:ring-red-600 outline-none"
+                      />
+                      <span className="text-[10px] text-slate-400 mt-1 block">Ex: https://youtube.com/@barkasolutions</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="pt-4 border-t border-slate-100 flex justify-end">
@@ -2348,6 +2492,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* ================= TAB: AUDIT LOGS (ADMIN ONLY) ================= */}
         {activeTab === 'audit' && isAdmin && (
           <AdminAuditTab currentUser={currentUser} />
+        )}
+
+        {/* ================= MODAL: PLEIN ÉCRAN APERÇU INTÉGRAL D'IMAGE ================= */}
+        {previewImageModal && (
+          <div
+            className="fixed inset-0 z-[120] flex flex-col items-center justify-center bg-black/95 backdrop-blur-md p-3 sm:p-6 select-none cursor-zoom-out"
+            onClick={() => setPreviewImageModal(null)}
+          >
+            <button
+              onClick={() => setPreviewImageModal(null)}
+              className="absolute top-4 right-4 z-[130] p-3 rounded-full bg-white/10 hover:bg-rose-600 text-white transition-colors cursor-pointer shadow-xl border border-white/20"
+              aria-label="Fermer l'aperçu plein écran"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <div
+              className="relative max-w-[96vw] max-h-[92vh] flex flex-col items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={previewImageModal.src}
+                alt={previewImageModal.title}
+                className="max-w-[94vw] max-h-[85vh] object-contain rounded-lg shadow-2xl border border-white/15"
+              />
+              <div className="mt-3 text-center text-xs text-slate-300 bg-slate-900/90 px-4 py-1.5 rounded-full border border-slate-700 shadow-md">
+                <span className="font-bold text-white">{previewImageModal.title}</span> — Image affichée dans son intégralité sans recadrage (Cliquer pour fermer)
+              </div>
+            </div>
+          </div>
         )}
       </main>
     </div>

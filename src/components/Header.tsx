@@ -14,20 +14,42 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { BarkaLogo } from './BarkaLogo';
-import { TabType } from '../types';
+import { TabType, CompanySettings } from '../types';
+import { COMPANY_SETTINGS } from '../config/companySettings';
 
 interface HeaderProps {
   onOpenMenu: () => void;
   activeTab: TabType;
   onSelectTab: (tab: TabType) => void;
+  companySettings?: CompanySettings;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenMenu,
   activeTab,
   onSelectTab,
+  companySettings,
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
+
+  // Dynamic company settings with localStorage cache and fallback
+  const activeCompany = companySettings || (() => {
+    try {
+      const stored = localStorage.getItem('barka_company_settings');
+      if (stored) return { ...COMPANY_SETTINGS, ...JSON.parse(stored) };
+    } catch {
+      // ignore
+    }
+    return COMPANY_SETTINGS;
+  })();
+
+  const facebookUrl = activeCompany.social_links?.facebook || activeCompany.social_facebook || 'https://facebook.com';
+  const youtubeUrl = activeCompany.social_links?.youtube || activeCompany.social_youtube || 'https://youtube.com';
+  const linkedinUrl = activeCompany.social_links?.linkedin || activeCompany.social_linkedin || 'https://linkedin.com';
+  const whatsappUrl = activeCompany.social_links?.whatsapp || activeCompany.social_whatsapp || `https://wa.me/${(activeCompany.whatsapp_raw || activeCompany.whatsapp || '237696311198').replace(/\D/g, '')}`;
+  const phonePrimary = activeCompany.phone_primary || activeCompany.phone1 || '+237 696 311 198';
+  const emailPrimary = activeCompany.email_primary || activeCompany.email1 || 'direction@barkasolutions.org';
+  const addressText = activeCompany.city ? `${activeCompany.city}, ${activeCompany.country}` : 'Ngaoundéré, Cameroun';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -45,28 +67,28 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Left contact coordinates */}
           <div className="flex items-center gap-3 sm:gap-4 flex-wrap justify-center sm:justify-start">
             <a
-              href="tel:+237671234567"
+              href={`tel:${phonePrimary.replace(/\s+/g, '')}`}
               className="flex items-center gap-1.5 hover:text-cyan-400 transition-colors"
             >
               <Phone className="w-3.5 h-3.5 text-cyan-400" />
-              <span>+237 6 71 23 45 67</span>
+              <span>{phonePrimary}</span>
             </a>
 
             <span className="text-slate-600 hidden sm:inline">|</span>
 
             <a
-              href="mailto:contact@imprimerie-pro.cm"
+              href={`mailto:${emailPrimary}`}
               className="flex items-center gap-1.5 hover:text-cyan-400 transition-colors"
             >
               <Mail className="w-3.5 h-3.5 text-cyan-400" />
-              <span>contact@imprimerie-pro.cm</span>
+              <span>{emailPrimary}</span>
             </a>
 
             <span className="text-slate-600 hidden md:inline">|</span>
 
             <div className="hidden md:flex items-center gap-1.5 text-slate-300">
               <MapPin className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Ngaoundéré, Cameroun</span>
+              <span>{addressText}</span>
             </div>
           </div>
 
@@ -75,37 +97,41 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="text-slate-300 font-medium hidden sm:inline">Suivez-nous :</span>
             <div className="flex items-center gap-1.5">
               <a
-                href="https://facebook.com"
+                href={facebookUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Facebook"
+                title="Page Facebook officielle"
                 className="w-6 h-6 rounded-full bg-white text-[#051329] hover:bg-cyan-400 hover:text-white transition-colors flex items-center justify-center text-[11px]"
               >
                 <Facebook className="w-3.5 h-3.5 fill-current" />
               </a>
               <a
-                href="https://youtube.com"
+                href={youtubeUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="YouTube"
+                title="Chaîne YouTube officielle"
                 className="w-6 h-6 rounded-full bg-white text-[#051329] hover:bg-red-500 hover:text-white transition-colors flex items-center justify-center text-[11px]"
               >
                 <Youtube className="w-3.5 h-3.5 fill-current" />
               </a>
               <a
-                href="https://linkedin.com"
+                href={linkedinUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="LinkedIn"
+                title="Page LinkedIn officielle"
                 className="w-6 h-6 rounded-full bg-white text-[#051329] hover:bg-blue-600 hover:text-white transition-colors flex items-center justify-center text-[11px]"
               >
                 <Linkedin className="w-3.5 h-3.5 fill-current" />
               </a>
               <a
-                href="https://wa.me/237671234567"
+                href={whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="WhatsApp"
+                title="Discussion WhatsApp directe"
                 className="w-6 h-6 rounded-full bg-white text-[#051329] hover:bg-emerald-500 hover:text-white transition-colors flex items-center justify-center text-[11px]"
               >
                 <MessageCircle className="w-3.5 h-3.5 fill-current" />
