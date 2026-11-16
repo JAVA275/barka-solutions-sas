@@ -287,12 +287,12 @@ export const apiService = {
         }
       });
 
-      // Encode files as base64 data URLs for resilient persistence
+      // Pre-compute base64 data URLs in client memory for instant resilient downloading
       const fileDataUrls: Record<string, string> = {};
       if (files && files.length > 0) {
         await Promise.all(
           files.map(async (file) => {
-            if (file.size <= 15 * 1024 * 1024) {
+            if (file.size <= 25 * 1024 * 1024) {
               try {
                 const dataUrl = await new Promise<string>((resolve, reject) => {
                   const reader = new FileReader();
@@ -302,17 +302,14 @@ export const apiService = {
                 });
                 fileDataUrls[file.name] = dataUrl;
               } catch (readErr) {
-                console.warn('Could not read file to base64:', file.name, readErr);
+                console.warn('Could not read file to base64 in client:', file.name, readErr);
               }
             }
           })
         );
-        if (Object.keys(fileDataUrls).length > 0) {
-          bodyFormData.append('fileDataUrls', JSON.stringify(fileDataUrls));
-        }
       }
 
-      // Append files
+      // Append binary files (handled safely by Multer on the backend)
       files.forEach((file) => {
         bodyFormData.append('files', file);
       });

@@ -31,6 +31,8 @@ export function globalErrorHandler(
       message = 'Nombre maximum de fichiers autorisés dépassé (maximum 5 fichiers).';
     } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
       message = `Champ de fichier inattendu : "${err.field}".`;
+    } else if (err.code === 'LIMIT_FIELD_VALUE') {
+      message = 'Le champ de données dépasse la taille maximale autorisée.';
     }
     res.status(400).json({
       success: false,

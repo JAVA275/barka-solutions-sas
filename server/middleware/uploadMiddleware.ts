@@ -92,6 +92,7 @@ export const quoteUpload = multer({
   limits: {
     fileSize: 50 * 1024 * 1024, // Limite stricte : 50 Mo par fichier
     files: 5, // Maximum 5 fichiers par devis
+    fieldSize: 25 * 1024 * 1024, // Autorise les champs de données jusqu'à 25 Mo
   },
 });
 

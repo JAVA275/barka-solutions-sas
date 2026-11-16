@@ -93,6 +93,8 @@ function globalErrorHandler(err, req, res, _next) {
       message = "Nombre maximum de fichiers autoris\xE9s d\xE9pass\xE9 (maximum 5 fichiers).";
     } else if (err.code === "LIMIT_UNEXPECTED_FILE") {
       message = `Champ de fichier inattendu : "${err.field}".`;
+    } else if (err.code === "LIMIT_FIELD_VALUE") {
+      message = "Le champ de donn\xE9es d\xE9passe la taille maximale autoris\xE9e.";
     }
     res.status(400).json({
       success: false,
@@ -5978,8 +5980,10 @@ var quoteUpload = multer2({
   limits: {
     fileSize: 50 * 1024 * 1024,
     // Limite stricte : 50 Mo par fichier
-    files: 5
+    files: 5,
     // Maximum 5 fichiers par devis
+    fieldSize: 25 * 1024 * 1024
+    // Autorise les champs de données jusqu'à 25 Mo
   }
 });
 var PORTFOLIO_ALLOWED_EXTENSIONS = /* @__PURE__ */ new Set([".jpg", ".jpeg", ".png", ".webp"]);
