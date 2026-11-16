@@ -244,6 +244,26 @@ export const QuoteScreen: React.FC<QuoteScreenProps> = ({
       const res = await apiService.submitQuote(payload, uploadedFiles);
 
       if (res.success && res.data) {
+        // Ensure files retain dataUrl for direct resilient downloading
+        if (res.data.files && Array.isArray(res.data.files)) {
+          for (const f of res.data.files) {
+            if (!f.dataUrl && uploadedFiles.length > 0) {
+              const matchedFile = uploadedFiles.find((uf) => uf.name === f.originalName);
+              if (matchedFile && matchedFile.size <= 15 * 1024 * 1024) {
+                try {
+                  const dataUrl = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result as string);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(matchedFile);
+                  });
+                  f.dataUrl = dataUrl;
+                } catch {}
+              }
+            }
+          }
+        }
+
         setSubmittedQuote(res.data);
 
         // Store client-side copy in localStorage so Admin immediately sees the order

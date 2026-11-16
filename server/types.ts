@@ -60,6 +60,7 @@ export interface UploadedFileMeta {
   fileSize: number;
   mimeType: string;
   createdAt: string;
+  dataUrl?: string;
 }
 
 export type QuoteStatus =

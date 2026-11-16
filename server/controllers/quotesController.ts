@@ -79,8 +79,32 @@ export async function createQuote(req: Request, res: Response, next: NextFunctio
 
     // 2. Process attached files into private metadata
     const attachedFiles: UploadedFileMeta[] = [];
+    let passedDataUrls: Record<string, string> = {};
+    if (req.body?.fileDataUrls) {
+      try {
+        passedDataUrls =
+          typeof req.body.fileDataUrls === 'string'
+            ? JSON.parse(req.body.fileDataUrls)
+            : req.body.fileDataUrls;
+      } catch {
+        passedDataUrls = {};
+      }
+    }
+
     if (req.files && Array.isArray(req.files)) {
       for (const file of req.files) {
+        let fileDataUrl: string | undefined = passedDataUrls[file.originalname];
+        if (!fileDataUrl && file.path && fs.existsSync(file.path)) {
+          try {
+            if (file.size < 15 * 1024 * 1024) {
+              const fileBuf = fs.readFileSync(file.path);
+              fileDataUrl = `data:${file.mimetype};base64,${fileBuf.toString('base64')}`;
+            }
+          } catch (readErr) {
+            console.warn('[QUOTE UPLOAD] Could not read file buffer to base64:', readErr);
+          }
+        }
+
         attachedFiles.push({
           id: file.filename,
           originalName: file.originalname,
@@ -89,6 +113,7 @@ export async function createQuote(req: Request, res: Response, next: NextFunctio
           fileSize: file.size,
           mimeType: file.mimetype,
           createdAt: new Date().toISOString(),
+          dataUrl: fileDataUrl,
         });
       }
     }
@@ -371,19 +396,36 @@ export async function downloadQuoteFile(req: AuthenticatedRequest, res: Response
       return;
     }
 
-    // 2. Vérification de l'existence du devis
-    const quote = await db.getQuoteByIdAsync(quoteId);
+    // 2. Recherche et normalisation de l'existence du devis
+    const cleanQuoteId = quoteId.trim().replace(/^#/, '');
+    let quote = await db.getQuoteByIdAsync(cleanQuoteId);
+    if (!quote) {
+      quote = await db.getQuoteByIdAsync(quoteId);
+    }
+    if (!quote) {
+      const allQuotes = await db.getAllQuotes();
+      quote =
+        allQuotes.find(
+          (q) =>
+            q.id === quoteId ||
+            q.id === cleanQuoteId ||
+            q.id.replace(/^#/, '').toLowerCase() === cleanQuoteId.toLowerCase()
+        ) || null;
+    }
+
     if (!quote) {
       res.status(404).json({ success: false, error: 'Devis introuvable.' });
       return;
     }
 
     // 3. Recherche du fichier dans les métadonnées du devis
+    const cleanFileId = fileId.trim();
     const fileMeta = quote.files?.find(
       (f) =>
-        f.id === fileId ||
-        f.storedName === fileId ||
-        path.basename(f.filePath || '') === fileId
+        f.id === cleanFileId ||
+        f.storedName === cleanFileId ||
+        path.basename(f.filePath || '') === cleanFileId ||
+        f.originalName === cleanFileId
     );
 
     if (!fileMeta) {
@@ -391,10 +433,30 @@ export async function downloadQuoteFile(req: AuthenticatedRequest, res: Response
       return;
     }
 
-    const safeStoredName = path.basename(fileMeta.storedName || fileId);
+    const sanitizedOriginalName = (fileMeta.originalName || 'document')
+      .replace(/[\r\n\0"]/g, '_')
+      .trim();
+
+    // 4. Si fileMeta possède un dataUrl (Base64), on le sert directement (résilient à Vercel serverless)
+    if (fileMeta.dataUrl && fileMeta.dataUrl.includes(',')) {
+      const base64Data = fileMeta.dataUrl.split(',')[1];
+      const buffer = Buffer.from(base64Data, 'base64');
+      res.setHeader('Content-Type', fileMeta.mimeType || 'application/octet-stream');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${encodeURIComponent(sanitizedOriginalName)}"; filename*=UTF-8''${encodeURIComponent(sanitizedOriginalName)}`
+      );
+      res.setHeader('Content-Length', buffer.length.toString());
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+      res.end(buffer);
+      return;
+    }
+
+    const safeStoredName = path.basename(fileMeta.storedName || cleanFileId);
     const absolutePath = path.resolve(QUOTES_UPLOADS_DIR, safeStoredName);
 
-    // 4. Vérification du périmètre de sécurité
+    // 5. Vérification du périmètre de sécurité
     if (!absolutePath.startsWith(QUOTES_UPLOADS_DIR)) {
       res.status(403).json({ success: false, error: 'Accès non autorisé.' });
       return;
@@ -405,11 +467,7 @@ export async function downloadQuoteFile(req: AuthenticatedRequest, res: Response
       return;
     }
 
-    // 5. En-têtes HTTP de sécurité pour le téléchargement
-    const sanitizedOriginalName = (fileMeta.originalName || 'document')
-      .replace(/[\r\n\0"]/g, '_')
-      .trim();
-
+    // 6. En-têtes HTTP de sécurité pour le téléchargement
     res.setHeader('Content-Type', fileMeta.mimeType || 'application/octet-stream');
     res.setHeader(
       'Content-Disposition',

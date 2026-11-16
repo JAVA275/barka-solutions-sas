@@ -287,6 +287,31 @@ export const apiService = {
         }
       });
 
+      // Encode files as base64 data URLs for resilient persistence
+      const fileDataUrls: Record<string, string> = {};
+      if (files && files.length > 0) {
+        await Promise.all(
+          files.map(async (file) => {
+            if (file.size <= 15 * 1024 * 1024) {
+              try {
+                const dataUrl = await new Promise<string>((resolve, reject) => {
+                  const reader = new FileReader();
+                  reader.onload = () => resolve(reader.result as string);
+                  reader.onerror = reject;
+                  reader.readAsDataURL(file);
+                });
+                fileDataUrls[file.name] = dataUrl;
+              } catch (readErr) {
+                console.warn('Could not read file to base64:', file.name, readErr);
+              }
+            }
+          })
+        );
+        if (Object.keys(fileDataUrls).length > 0) {
+          bodyFormData.append('fileDataUrls', JSON.stringify(fileDataUrls));
+        }
+      }
+
       // Append files
       files.forEach((file) => {
         bodyFormData.append('files', file);
@@ -304,6 +329,14 @@ export const apiService = {
           success: false,
           error: data.error || 'Erreur lors de la soumission du devis.',
         };
+      }
+      if (data.data?.files && Array.isArray(data.data.files)) {
+        data.data.files = data.data.files.map((f: any) => {
+          if (!f.dataUrl && fileDataUrls[f.originalName]) {
+            return { ...f, dataUrl: fileDataUrls[f.originalName] };
+          }
+          return f;
+        });
       }
       return data;
     } catch (err: unknown) {
@@ -344,8 +377,9 @@ export const apiService = {
   },
 
   async downloadQuoteFile(quoteId: string, fileId: string, filename: string): Promise<boolean> {
+    const cleanQuoteId = quoteId.trim().replace(/^#/, '');
     const cleanFileId = fileId.includes('/') ? fileId.split('/').pop() || fileId : fileId;
-    const res = await fetch(`/api/quotes/${encodeURIComponent(quoteId)}/files/${encodeURIComponent(cleanFileId)}`, {
+    const res = await fetch(`/api/quotes/${encodeURIComponent(cleanQuoteId)}/files/${encodeURIComponent(cleanFileId)}`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) {

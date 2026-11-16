@@ -1269,15 +1269,29 @@ class Database {
 
   getQuoteById(id: string): SubmittedQuote | null {
     this.reloadFromFileIfNeeded();
-    return (this.store.quotes || []).find((q) => q.id === id) || null;
+    const cleanId = String(id || '').trim().replace(/^#/, '');
+    const cleanIdLower = cleanId.toLowerCase();
+    return (
+      (this.store.quotes || []).find((q) => {
+        const qClean = String(q.id || '').trim().replace(/^#/, '').toLowerCase();
+        return q.id === id || qClean === cleanIdLower;
+      }) || null
+    );
   }
 
   async getQuoteByIdAsync(id: string): Promise<SubmittedQuote | null> {
     const mem = this.getQuoteById(id);
     if (mem) return mem;
+    const cleanId = String(id || '').trim().replace(/^#/, '');
     if (pgManager.isPgConnected()) {
       try {
-        const res = await pgManager.query('SELECT * FROM quotes WHERE id = $1 LIMIT 1', [id]);
+        const res = await pgManager.query(
+          `SELECT * FROM quotes 
+           WHERE id = $1 
+              OR LOWER(REPLACE(id, '#', '')) = LOWER($2) 
+           LIMIT 1`,
+          [id, cleanId]
+        );
         if (res.rows.length > 0) {
           const row = res.rows[0];
           const q: SubmittedQuote = {
@@ -1306,8 +1320,8 @@ class Database {
             finalPrice: row.final_price ? Number(row.final_price) : undefined,
             status: normalizeQuoteStatus(row.status),
             adminNotes: row.admin_notes,
-            files: row.files || [],
-            statusHistory: row.status_history || [],
+            files: typeof row.files === 'string' ? JSON.parse(row.files) : (row.files || []),
+            statusHistory: typeof row.status_history === 'string' ? JSON.parse(row.status_history) : (row.status_history || []),
             submittedAt: row.submitted_at?.toISOString() || new Date().toISOString(),
           };
           if (!this.store.quotes) this.store.quotes = [];

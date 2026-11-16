@@ -2220,14 +2220,26 @@ var Database = class {
   }
   getQuoteById(id) {
     this.reloadFromFileIfNeeded();
-    return (this.store.quotes || []).find((q) => q.id === id) || null;
+    const cleanId = String(id || "").trim().replace(/^#/, "");
+    const cleanIdLower = cleanId.toLowerCase();
+    return (this.store.quotes || []).find((q) => {
+      const qClean = String(q.id || "").trim().replace(/^#/, "").toLowerCase();
+      return q.id === id || qClean === cleanIdLower;
+    }) || null;
   }
   async getQuoteByIdAsync(id) {
     const mem = this.getQuoteById(id);
     if (mem) return mem;
+    const cleanId = String(id || "").trim().replace(/^#/, "");
     if (pgManager.isPgConnected()) {
       try {
-        const res = await pgManager.query("SELECT * FROM quotes WHERE id = $1 LIMIT 1", [id]);
+        const res = await pgManager.query(
+          `SELECT * FROM quotes 
+           WHERE id = $1 
+              OR LOWER(REPLACE(id, '#', '')) = LOWER($2) 
+           LIMIT 1`,
+          [id, cleanId]
+        );
         if (res.rows.length > 0) {
           const row = res.rows[0];
           const q = {
@@ -2256,8 +2268,8 @@ var Database = class {
             finalPrice: row.final_price ? Number(row.final_price) : void 0,
             status: normalizeQuoteStatus(row.status),
             adminNotes: row.admin_notes,
-            files: row.files || [],
-            statusHistory: row.status_history || [],
+            files: typeof row.files === "string" ? JSON.parse(row.files) : row.files || [],
+            statusHistory: typeof row.status_history === "string" ? JSON.parse(row.status_history) : row.status_history || [],
             submittedAt: row.submitted_at?.toISOString() || (/* @__PURE__ */ new Date()).toISOString()
           };
           if (!this.store.quotes) this.store.quotes = [];
@@ -5397,8 +5409,27 @@ async function createQuote(req, res, next) {
     const officialServerEstimatedPrice = pricingResult.estimatedTotal;
     const officialPriceType = pricingResult.priceType;
     const attachedFiles = [];
+    let passedDataUrls = {};
+    if (req.body?.fileDataUrls) {
+      try {
+        passedDataUrls = typeof req.body.fileDataUrls === "string" ? JSON.parse(req.body.fileDataUrls) : req.body.fileDataUrls;
+      } catch {
+        passedDataUrls = {};
+      }
+    }
     if (req.files && Array.isArray(req.files)) {
       for (const file of req.files) {
+        let fileDataUrl = passedDataUrls[file.originalname];
+        if (!fileDataUrl && file.path && fs4.existsSync(file.path)) {
+          try {
+            if (file.size < 15 * 1024 * 1024) {
+              const fileBuf = fs4.readFileSync(file.path);
+              fileDataUrl = `data:${file.mimetype};base64,${fileBuf.toString("base64")}`;
+            }
+          } catch (readErr) {
+            console.warn("[QUOTE UPLOAD] Could not read file buffer to base64:", readErr);
+          }
+        }
         attachedFiles.push({
           id: file.filename,
           originalName: file.originalname,
@@ -5407,7 +5438,8 @@ async function createQuote(req, res, next) {
           // Populated with secure route below once quote ID is generated
           fileSize: file.size,
           mimeType: file.mimetype,
-          createdAt: (/* @__PURE__ */ new Date()).toISOString()
+          createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+          dataUrl: fileDataUrl
         });
       }
     }
@@ -5641,19 +5673,45 @@ async function downloadQuoteFile(req, res, next) {
       res.status(400).json({ success: false, error: "Requ\xEAte ou identifiant de fichier invalide." });
       return;
     }
-    const quote = await db.getQuoteByIdAsync(quoteId);
+    const cleanQuoteId = quoteId.trim().replace(/^#/, "");
+    let quote = await db.getQuoteByIdAsync(cleanQuoteId);
+    if (!quote) {
+      quote = await db.getQuoteByIdAsync(quoteId);
+    }
+    if (!quote) {
+      const allQuotes = await db.getAllQuotes();
+      quote = allQuotes.find(
+        (q) => q.id === quoteId || q.id === cleanQuoteId || q.id.replace(/^#/, "").toLowerCase() === cleanQuoteId.toLowerCase()
+      ) || null;
+    }
     if (!quote) {
       res.status(404).json({ success: false, error: "Devis introuvable." });
       return;
     }
+    const cleanFileId = fileId.trim();
     const fileMeta = quote.files?.find(
-      (f) => f.id === fileId || f.storedName === fileId || path4.basename(f.filePath || "") === fileId
+      (f) => f.id === cleanFileId || f.storedName === cleanFileId || path4.basename(f.filePath || "") === cleanFileId || f.originalName === cleanFileId
     );
     if (!fileMeta) {
       res.status(404).json({ success: false, error: "Fichier non trouv\xE9 pour ce devis." });
       return;
     }
-    const safeStoredName = path4.basename(fileMeta.storedName || fileId);
+    const sanitizedOriginalName = (fileMeta.originalName || "document").replace(/[\r\n\0"]/g, "_").trim();
+    if (fileMeta.dataUrl && fileMeta.dataUrl.includes(",")) {
+      const base64Data = fileMeta.dataUrl.split(",")[1];
+      const buffer = Buffer.from(base64Data, "base64");
+      res.setHeader("Content-Type", fileMeta.mimeType || "application/octet-stream");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${encodeURIComponent(sanitizedOriginalName)}"; filename*=UTF-8''${encodeURIComponent(sanitizedOriginalName)}`
+      );
+      res.setHeader("Content-Length", buffer.length.toString());
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Cache-Control", "private, no-cache, no-store, must-revalidate");
+      res.end(buffer);
+      return;
+    }
+    const safeStoredName = path4.basename(fileMeta.storedName || cleanFileId);
     const absolutePath = path4.resolve(QUOTES_UPLOADS_DIR, safeStoredName);
     if (!absolutePath.startsWith(QUOTES_UPLOADS_DIR)) {
       res.status(403).json({ success: false, error: "Acc\xE8s non autoris\xE9." });
@@ -5663,7 +5721,6 @@ async function downloadQuoteFile(req, res, next) {
       res.status(404).json({ success: false, error: "Le fichier physique est introuvable sur le serveur." });
       return;
     }
-    const sanitizedOriginalName = (fileMeta.originalName || "document").replace(/[\r\n\0"]/g, "_").trim();
     res.setHeader("Content-Type", fileMeta.mimeType || "application/octet-stream");
     res.setHeader(
       "Content-Disposition",

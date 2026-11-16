@@ -165,6 +165,8 @@ export interface UploadedFileInfo {
   fileSize: number;
   mimeType: string;
   fileUrl?: string;
+  filePath?: string;
+  dataUrl?: string;
 }
 
 export interface QuoteFormData {
@@ -235,6 +237,7 @@ export interface SubmittedQuote extends QuoteFormData {
   adminNotes?: string;
   finalPrice?: number;
   statusHistory?: StatusHistoryEntry[];
+  files?: UploadedFileInfo[];
 }
 
 export interface ContactMessage {

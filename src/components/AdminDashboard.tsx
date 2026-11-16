@@ -50,6 +50,7 @@ import {
 import {
   AuthUser,
   SubmittedQuote,
+  UploadedFileInfo,
   ContactMessage,
   ServerStats,
   CompanySettings,
@@ -202,9 +203,60 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
 
-  const handleDownloadQuoteFile = async (quoteId: string, fileId: string, originalName: string) => {
+  const handleDownloadQuoteFile = async (
+    quoteId: string,
+    fileId: string,
+    originalName: string,
+    fileMeta?: UploadedFileInfo
+  ) => {
     try {
       setDownloadingFileId(fileId);
+
+      // 1. Direct download if dataUrl is available on fileMeta
+      if (fileMeta?.dataUrl && fileMeta.dataUrl.startsWith('data:')) {
+        const a = document.createElement('a');
+        a.href = fileMeta.dataUrl;
+        a.download = originalName || 'document';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+      }
+
+      // 2. Check in localStorage (barka_client_submitted_quotes) if this quote or file has a dataUrl
+      try {
+        const storedRaw = localStorage.getItem('barka_client_submitted_quotes');
+        if (storedRaw) {
+          const clientQuotes: SubmittedQuote[] = JSON.parse(storedRaw);
+          const cleanQId = quoteId.trim().replace(/^#/, '').toLowerCase();
+          const matchQuote = clientQuotes.find(
+            (q) => q.id === quoteId || q.id.trim().replace(/^#/, '').toLowerCase() === cleanQId
+          );
+          if (matchQuote && matchQuote.files) {
+            const cleanFId = fileId.includes('/') ? fileId.split('/').pop() || fileId : fileId;
+            const matchFile = matchQuote.files.find(
+              (f) =>
+                f.id === fileId ||
+                f.storedName === fileId ||
+                f.originalName === originalName ||
+                (f.filePath && f.filePath.endsWith(cleanFId))
+            );
+            if (matchFile?.dataUrl && matchFile.dataUrl.startsWith('data:')) {
+              const a = document.createElement('a');
+              a.href = matchFile.dataUrl;
+              a.download = originalName || matchFile.originalName || 'document';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              return;
+            }
+          }
+        }
+      } catch (locErr) {
+        console.warn('Erreur vérification cache local devis:', locErr);
+      }
+
+      // 3. Fallback to API server download
       await apiService.downloadQuoteFile(quoteId, fileId, originalName);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erreur lors du téléchargement';
@@ -1426,7 +1478,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                   handleDownloadQuoteFile(
                                     selectedQuote.id,
                                     file.id || file.storedName || file.filePath,
-                                    file.originalName
+                                    file.originalName,
+                                    file
                                   )
                                 }
                                 className="inline-flex items-center gap-1.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg font-bold text-xs cursor-pointer transition shadow-xs"
