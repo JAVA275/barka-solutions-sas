@@ -6,10 +6,9 @@ import { COMPANY_INFO } from '../data/mockData';
 
 interface FooterProps {
   onSelectTab: (tab: TabType) => void;
-  onOpenAdmin: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onSelectTab, onOpenAdmin }) => {
+export const Footer: React.FC<FooterProps> = ({ onSelectTab }) => {
   return (
     <footer className="bg-slate-950 text-white pt-10 sm:pt-12 pb-24 sm:pb-8 border-t border-slate-800" id="main-footer">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -78,14 +77,6 @@ export const Footer: React.FC<FooterProps> = ({ onSelectTab, onOpenAdmin }) => {
                   </button>
                 </li>
               ))}
-              <li>
-                <button
-                  onClick={onOpenAdmin}
-                  className="text-slate-400 hover:text-emerald-400 transition-colors text-left text-xs"
-                >
-                  🔒 Espace Administration
-                </button>
-              </li>
             </ul>
           </div>
 

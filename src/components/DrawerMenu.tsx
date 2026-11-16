@@ -9,7 +9,6 @@ import {
   Info,
   Mail,
   Phone,
-  ShieldCheck,
   MessageCircle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -22,7 +21,6 @@ interface DrawerMenuProps {
   onClose: () => void;
   activeTab: TabType;
   onSelectTab: (tab: TabType) => void;
-  onOpenAdmin: () => void;
 }
 
 export const DrawerMenu: React.FC<DrawerMenuProps> = ({
@@ -30,7 +28,6 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
   onClose,
   activeTab,
   onSelectTab,
-  onOpenAdmin,
 }) => {
   const menuItems = [
     { id: 'accueil' as TabType, label: 'Accueil', icon: Home },
@@ -109,26 +106,6 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
                     </motion.button>
                   );
                 })}
-
-                {/* Admin Back-office link */}
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.35, duration: 0.3 }}
-                  className="pt-3"
-                >
-                  <button
-                    onClick={() => {
-                      onClose();
-                      onOpenAdmin();
-                    }}
-                    id="drawer-link-admin"
-                    className="w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 transition-all border border-slate-800 cursor-pointer"
-                  >
-                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                    <span>Espace Administration</span>
-                  </button>
-                </motion.div>
               </nav>
             </div>
 

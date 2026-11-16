@@ -23,10 +23,6 @@ export const PublicLayout: React.FC = () => {
     navigate(targetPath);
   };
 
-  const handleOpenAdmin = () => {
-    navigate('/admin/dashboard');
-  };
-
   return (
     <div className="min-h-screen flex flex-col bg-slate-100 text-slate-900 font-sans selection:bg-[#0010c2] selection:text-white">
       {/* Brand CMYK Preloader on initial load */}
@@ -58,10 +54,7 @@ export const PublicLayout: React.FC = () => {
       <FloatingWhatsApp />
 
       {/* Desktop & Mobile Footer */}
-      <Footer
-        onSelectTab={handleSelectTab}
-        onOpenAdmin={handleOpenAdmin}
-      />
+      <Footer onSelectTab={handleSelectTab} />
 
       {/* Persistent Bottom Navigation Bar on Small Screens (Fixed Bottom with Safe Area) */}
       <BottomNav activeTab={activeTab} onSelectTab={handleSelectTab} />
@@ -72,7 +65,6 @@ export const PublicLayout: React.FC = () => {
         onClose={() => setIsMenuOpen(false)}
         activeTab={activeTab}
         onSelectTab={handleSelectTab}
-        onOpenAdmin={handleOpenAdmin}
       />
     </div>
   );
