@@ -1,7 +1,6 @@
 import express, { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
-import { createServer as createViteServer } from 'vite';
 import { app } from './app';
 import { getJwtSecret } from './services/auth';
 
@@ -37,31 +36,48 @@ async function startServer() {
   });
 
   // Vite middleware for Development / Static serving for Production
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
+  const isProduction =
+    process.env.NODE_ENV === 'production' ||
+    !fs.existsSync(path.resolve(process.cwd(), 'index.html'));
 
-    // Development SPA Fallback with Vite transformIndexHtml for all client routes
-    app.use('*', async (req: Request, res: Response, next) => {
-      // Skip if URL is an API or upload route
-      if (req.originalUrl.startsWith('/api') || req.originalUrl.startsWith('/uploads')) {
-        return next();
-      }
-      try {
-        const indexPath = path.resolve(process.cwd(), 'index.html');
-        let template = fs.readFileSync(indexPath, 'utf-8');
-        template = await vite.transformIndexHtml(req.originalUrl, template);
-        res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
-      } catch (e) {
-        vite.ssrFixStacktrace(e as Error);
-        next(e);
-      }
-    });
+  if (!isProduction) {
+    try {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+
+      // Development SPA Fallback with Vite transformIndexHtml for all client routes
+      app.use('*', async (req: Request, res: Response, next) => {
+        // Skip if URL is an API or upload route
+        if (req.originalUrl.startsWith('/api') || req.originalUrl.startsWith('/uploads')) {
+          return next();
+        }
+        try {
+          const indexPath = path.resolve(process.cwd(), 'index.html');
+          let template = fs.readFileSync(indexPath, 'utf-8');
+          template = await vite.transformIndexHtml(req.originalUrl, template);
+          res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+        } catch (e) {
+          vite.ssrFixStacktrace(e as Error);
+          next(e);
+        }
+      });
+    } catch {
+      console.warn('⚠️ [Vite] Vite non installé ou indisponible, passage automatique en mode production.');
+    }
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    const candidateDistPaths = [
+      path.join(process.cwd(), 'dist'),
+      path.join(process.cwd(), 'public_html'),
+      process.cwd(),
+    ];
+    const distPath =
+      candidateDistPaths.find((p) => fs.existsSync(path.join(p, 'index.html'))) ||
+      path.join(process.cwd(), 'dist');
+
     app.use(express.static(distPath));
     app.get('*', (req: Request, res: Response) => {
       res.sendFile(path.join(distPath, 'index.html'));
