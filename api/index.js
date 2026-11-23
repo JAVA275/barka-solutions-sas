@@ -1474,6 +1474,24 @@ var Database = class {
   getSeededPortfolio() {
     return [
       {
+        id: "port-concert-ngondo",
+        title: "afiche de concert",
+        category: "Conception graphique",
+        categories: ["Conception graphique", "Communication"],
+        description: "Conception graphique et cr\xE9ation visuelle d\u2019affiche \xE9v\xE9nementielle pour concert live et billetterie.",
+        image: "/uploads/portfolio/affiche-concert-ngondo.jpg",
+        images: ["/uploads/portfolio/affiche-concert-ngondo.jpg"],
+        client: "ngondo",
+        year: "2026",
+        tags: ["Ngaound\xE9r\xE9", "Conception graphique", "Affiche", "Concert"],
+        serviceAssocie: "Conception graphique & Identit\xE9 visuelle",
+        serviceId: "conception-graphique",
+        featured: true,
+        active: true,
+        isDemo: false,
+        createdAt: (/* @__PURE__ */ new Date()).toISOString()
+      },
+      {
         id: "port-001",
         title: "Brochure & Catalogue d\u2019Entreprise 24 Pages",
         category: "Offset",

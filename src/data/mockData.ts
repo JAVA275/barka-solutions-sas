@@ -544,6 +544,24 @@ export const SERVICES_DATA: ServiceItem[] = [
 
 export const PORTFOLIO_DATA: PortfolioItem[] = [
   {
+    id: 'port-concert-ngondo',
+    title: 'afiche de concert',
+    category: 'Conception graphique',
+    categories: ['Conception graphique', 'Communication'],
+    description: 'Conception graphique et création visuelle d’affiche événementielle pour concert live et billetterie.',
+    image: '/uploads/portfolio/affiche-concert-ngondo.jpg',
+    images: ['/uploads/portfolio/affiche-concert-ngondo.jpg'],
+    client: 'ngondo',
+    year: '2026',
+    tags: ['Ngaoundéré', 'Conception graphique', 'Affiche', 'Concert'],
+    serviceAssocie: 'Conception graphique & Identité visuelle',
+    serviceId: 'conception-graphique',
+    featured: true,
+    active: true,
+    isDemo: false,
+    createdAt: '2026-11-23T12:00:00.000Z',
+  },
+  {
     id: 'p1',
     title: 'Brochure & Catalogue d’Entreprise 24 Pages',
     category: 'Offset',
