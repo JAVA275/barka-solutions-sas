@@ -35,14 +35,19 @@ export const PortfolioScreen: React.FC<PortfolioScreenProps> = ({
   const [items, setItems] = useState<PortfolioItem[]>(() => {
     if (initialItems && initialItems.length > 0) return initialItems;
     try {
+      const deletedRaw = localStorage.getItem('barka_portfolio_deleted_ids');
+      const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
       const localStored = localStorage.getItem('barka_portfolio_custom_items');
       if (localStored) {
         const clientPortfolio = JSON.parse(localStored);
         if (Array.isArray(clientPortfolio) && clientPortfolio.length > 0) {
-          const validCustom = clientPortfolio.filter((i) => i && i.id && i.active !== false);
+          const validCustom = clientPortfolio.filter((i) => i && i.id && i.active !== false && !deletedIds.has(i.id));
           const customIds = new Set(validCustom.map((i) => i.id));
-          return [...validCustom, ...PORTFOLIO_DATA.filter((p) => !customIds.has(p.id))];
+          return [...validCustom, ...PORTFOLIO_DATA.filter((p) => !customIds.has(p.id) && !deletedIds.has(p.id))];
         }
+      }
+      if (deletedIds.size > 0) {
+        return PORTFOLIO_DATA.filter((p) => !deletedIds.has(p.id));
       }
     } catch {
       // ignore
@@ -66,14 +71,28 @@ export const PortfolioScreen: React.FC<PortfolioScreenProps> = ({
       }
 
       try {
+        const deletedRaw = localStorage.getItem('barka_portfolio_deleted_ids');
+        const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+        if (deletedIds.size > 0) {
+          mergedItems = mergedItems.filter((p) => !deletedIds.has(p.id));
+        }
+
         const localStored = localStorage.getItem('barka_portfolio_custom_items');
         if (localStored) {
           const clientPortfolio = JSON.parse(localStored);
           if (Array.isArray(clientPortfolio)) {
-            const currentIds = new Set(mergedItems.map((p) => p.id));
             for (const cp of clientPortfolio) {
-              if (cp && cp.id && cp.active !== false && !currentIds.has(cp.id)) {
-                mergedItems.unshift(cp);
+              if (cp && cp.id && !deletedIds.has(cp.id)) {
+                const existingIdx = mergedItems.findIndex((p) => p.id === cp.id);
+                if (existingIdx >= 0) {
+                  if (cp.active === false) {
+                    mergedItems.splice(existingIdx, 1);
+                  } else {
+                    mergedItems[existingIdx] = { ...mergedItems[existingIdx], ...cp };
+                  }
+                } else if (cp.active !== false) {
+                  mergedItems.unshift(cp);
+                }
               }
             }
           }
@@ -87,14 +106,28 @@ export const PortfolioScreen: React.FC<PortfolioScreenProps> = ({
       console.warn('Chargement portfolio distant différé, catalogue local actif:', err);
       let fallback = [...PORTFOLIO_DATA];
       try {
+        const deletedRaw = localStorage.getItem('barka_portfolio_deleted_ids');
+        const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+        if (deletedIds.size > 0) {
+          fallback = fallback.filter((p) => !deletedIds.has(p.id));
+        }
+
         const localStored = localStorage.getItem('barka_portfolio_custom_items');
         if (localStored) {
           const clientPortfolio = JSON.parse(localStored);
           if (Array.isArray(clientPortfolio)) {
-            const currentIds = new Set(fallback.map((p) => p.id));
             for (const cp of clientPortfolio) {
-              if (cp && cp.id && cp.active !== false && !currentIds.has(cp.id)) {
-                fallback.unshift(cp);
+              if (cp && cp.id && !deletedIds.has(cp.id)) {
+                const existingIdx = fallback.findIndex((p) => p.id === cp.id);
+                if (existingIdx >= 0) {
+                  if (cp.active === false) {
+                    fallback.splice(existingIdx, 1);
+                  } else {
+                    fallback[existingIdx] = { ...fallback[existingIdx], ...cp };
+                  }
+                } else if (cp.active !== false) {
+                  fallback.unshift(cp);
+                }
               }
             }
           }

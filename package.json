@@ -12,7 +12,8 @@
     "db:migrate": "tsx server/db/migrate.ts",
     "db:seed": "tsx server/db/seed.ts",
     "lint": "tsc --noEmit",
-    "test": "tsx scripts/comprehensive-test-audit.ts"
+    "test": "tsx scripts/comprehensive-test-audit.ts",
+    "package:hostinger": "powershell -ExecutionPolicy Bypass -File scripts/package-hostinger.ps1"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

@@ -145,7 +145,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
   const [quotes, setQuotes] = useState<SubmittedQuote[]>([]);
-  const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
+  const [portfolio, setPortfolio] = useState<PortfolioItem[]>(() => {
+    try {
+      const deletedRaw = localStorage.getItem('barka_portfolio_deleted_ids');
+      const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+      const localStored = localStorage.getItem('barka_portfolio_custom_items');
+      if (localStored) {
+        const parsed = JSON.parse(localStored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return deletedIds.size > 0 ? parsed.filter((p) => !deletedIds.has(p.id)) : parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  });
   const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [stats, setStats] = useState<ServerStats | null>(null);
   const [companySettings, setCompanySettings] = useState<CompanySettings>({ ...COMPANY_SETTINGS });
@@ -366,14 +381,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       if (portfolioRes.success && Array.isArray(portfolioRes.data)) {
         let allPortfolio = [...portfolioRes.data];
         try {
+          const deletedRaw = localStorage.getItem('barka_portfolio_deleted_ids');
+          const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+          if (deletedIds.size > 0) {
+            allPortfolio = allPortfolio.filter((p) => !deletedIds.has(p.id));
+          }
+
           const localStored = localStorage.getItem('barka_portfolio_custom_items');
           if (localStored) {
             const clientPortfolio = JSON.parse(localStored);
             if (Array.isArray(clientPortfolio)) {
-              const serverIds = new Set(allPortfolio.map((p) => p.id));
               for (const cp of clientPortfolio) {
-                if (cp && cp.id && !serverIds.has(cp.id)) {
-                  allPortfolio.unshift(cp);
+                if (cp && cp.id && !deletedIds.has(cp.id)) {
+                  const existingIdx = allPortfolio.findIndex((p) => p.id === cp.id);
+                  if (existingIdx >= 0) {
+                    allPortfolio[existingIdx] = { ...allPortfolio[existingIdx], ...cp };
+                  } else {
+                    allPortfolio.unshift(cp);
+                  }
                 }
               }
             }
@@ -758,8 +783,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const savePortfolioToLocalStorage = (items: PortfolioItem[]) => {
     try {
-      const customOnly = items.filter((i) => !i.isDemo);
-      localStorage.setItem('barka_portfolio_custom_items', JSON.stringify(customOnly));
+      localStorage.setItem('barka_portfolio_custom_items', JSON.stringify(items));
     } catch (e) {
       console.warn('Erreur stockage local portfolio:', e);
     }
@@ -849,7 +873,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         serviceAssocie: portfolioForm.serviceAssocie,
         featured: portfolioForm.featured,
         active: portfolioForm.active,
-        isDemo: portfolioForm.isDemo,
+        isDemo: false,
       };
 
       const res = await apiService.updatePortfolioItem(editingPortfolioItem.id, itemUpdatePayload);
@@ -860,6 +884,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       };
 
       const updatedList = portfolio.map((p) => (p.id === editingPortfolioItem.id ? updatedItem : p));
+      try {
+        const deletedRaw = localStorage.getItem('barka_portfolio_deleted_ids');
+        if (deletedRaw) {
+          const deletedIds: string[] = JSON.parse(deletedRaw);
+          const filtered = deletedIds.filter((dId) => dId !== editingPortfolioItem.id);
+          localStorage.setItem('barka_portfolio_deleted_ids', JSON.stringify(filtered));
+        }
+      } catch (e) {
+        console.warn('Erreur nettoyage deleted_ids:', e);
+      }
       setPortfolio(updatedList);
       savePortfolioToLocalStorage(updatedList);
       setShowPortfolioModal(false);
@@ -891,6 +925,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         updatedAt: new Date().toISOString(),
       };
 
+      try {
+        const deletedRaw = localStorage.getItem('barka_portfolio_deleted_ids');
+        if (deletedRaw) {
+          const deletedIds: string[] = JSON.parse(deletedRaw);
+          const filtered = deletedIds.filter((dId) => dId !== landedItem.id);
+          localStorage.setItem('barka_portfolio_deleted_ids', JSON.stringify(filtered));
+        }
+      } catch (e) {
+        console.warn('Erreur nettoyage deleted_ids:', e);
+      }
+
       const updatedList = [landedItem, ...portfolio];
       setPortfolio(updatedList);
       savePortfolioToLocalStorage(updatedList);
@@ -905,6 +950,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const remaining = portfolio.filter((p) => p.id !== id);
     setPortfolio(remaining);
     savePortfolioToLocalStorage(remaining);
+    try {
+      const deletedRaw = localStorage.getItem('barka_portfolio_deleted_ids');
+      const deletedIds: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+      if (!deletedIds.includes(id)) {
+        deletedIds.push(id);
+        localStorage.setItem('barka_portfolio_deleted_ids', JSON.stringify(deletedIds));
+      }
+    } catch (e) {
+      console.warn('Erreur stockage local deleted ids:', e);
+    }
     try {
       await apiService.deletePortfolioItem(id);
     } catch (e) {

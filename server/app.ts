@@ -39,9 +39,9 @@ app.use((req: Request, _res: Response, next) => {
 // 1. HTTP Security Headers
 app.use(securityHeadersMiddleware);
 
-// 2. Body and Cookie Parsers
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// 2. Body and Cookie Parsers (Up to 50MB for high-res portfolio images / base64)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
 
 // 3. CSRF Protection for Cookie-Authenticated Requests

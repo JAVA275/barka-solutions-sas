@@ -6864,8 +6864,8 @@ app.use((req, _res, next) => {
   next();
 });
 app.use(securityHeadersMiddleware);
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser());
 app.use(csrfProtection);
 app.use("/uploads/portfolio", express.static(PORTFOLIO_UPLOADS_DIR));
