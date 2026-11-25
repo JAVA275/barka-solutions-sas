@@ -6872,15 +6872,17 @@ auditRouter.get("/:id", (req, res) => {
 initUploadDirectories();
 var app = express();
 app.set("trust proxy", 1);
-app.use((req, _res, next) => {
-  if (req.originalUrl && (req.url === "/api/index.js" || req.url === "/api" || !req.url.startsWith("/api"))) {
-    req.url = req.originalUrl;
-  }
-  if (req.url && !req.url.startsWith("/api") && !req.url.startsWith("/uploads")) {
-    req.url = "/api" + (req.url.startsWith("/") ? req.url : "/" + req.url);
-  }
-  next();
-});
+if (process.env.VERCEL) {
+  app.use((req, _res, next) => {
+    if (req.originalUrl && (req.url === "/api/index.js" || req.url === "/api" || !req.url.startsWith("/api"))) {
+      req.url = req.originalUrl;
+    }
+    if (req.url && !req.url.startsWith("/api") && !req.url.startsWith("/uploads")) {
+      req.url = "/api" + (req.url.startsWith("/") ? req.url : "/" + req.url);
+    }
+    next();
+  });
+}
 app.use(securityHeadersMiddleware);
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
@@ -6903,11 +6905,14 @@ app.use(["/api/portfolio", "/portfolio"], portfolioRouter);
 app.use(["/api/services", "/services"], servicesRouter);
 app.use(["/api/prices", "/prices"], pricesRouter);
 app.use(["/api/audit", "/audit"], auditRouter);
-app.use("*", (req, res) => {
-  res.status(404).json({
-    success: false,
-    error: `Endpoint API introuvable : ${req.method} ${req.originalUrl || req.url}`
-  });
+app.use((req, res, next) => {
+  if (req.originalUrl?.startsWith("/api") || req.url?.startsWith("/api")) {
+    return res.status(404).json({
+      success: false,
+      error: `Endpoint API introuvable : ${req.method} ${req.originalUrl || req.url}`
+    });
+  }
+  next();
 });
 app.use(globalErrorHandler);
 

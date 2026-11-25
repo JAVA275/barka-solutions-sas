@@ -70,6 +70,8 @@ async function startServer() {
     }
   } else {
     const candidateDistPaths = [
+      __dirname,
+      path.join(__dirname, '..', 'dist'),
       path.join(process.cwd(), 'dist'),
       path.join(process.cwd(), 'public_html'),
       process.cwd(),
@@ -78,9 +80,25 @@ async function startServer() {
       candidateDistPaths.find((p) => fs.existsSync(path.join(p, 'index.html'))) ||
       path.join(process.cwd(), 'dist');
 
+    console.log(`📦 [Frontend SPA] Distribution statique servie depuis : ${distPath}`);
+
+    // Serve static frontend assets (CSS, JS, images, logos)
     app.use(express.static(distPath));
+
+    // Serve uploads if present
+    const uploadsPath = path.resolve(process.cwd(), 'uploads');
+    if (fs.existsSync(uploadsPath)) {
+      app.use('/uploads', express.static(uploadsPath));
+    }
+
+    // SPA Fallback: any client route serves index.html
     app.get('*', (req: Request, res: Response) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      const indexPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(404).send('Application BARKA SOLUTIONS S.A.S en cours d’initialisation (index.html introuvable).');
+      }
     });
   }
 

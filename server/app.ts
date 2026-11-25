@@ -24,17 +24,19 @@ export const app = express();
 // Configure Trust Proxy (Essential for Vercel and reverse proxies)
 app.set('trust proxy', 1);
 
-// Normalize URL for Vercel Serverless Function rewrites:
+// Normalize URL ONLY for Vercel Serverless Function rewrites:
 // Under Vercel rewrites, req.url may be set to /api/index.js or /api while req.originalUrl retains /api/portfolio
-app.use((req: Request, _res: Response, next) => {
-  if (req.originalUrl && (req.url === '/api/index.js' || req.url === '/api' || !req.url.startsWith('/api'))) {
-    req.url = req.originalUrl;
-  }
-  if (req.url && !req.url.startsWith('/api') && !req.url.startsWith('/uploads')) {
-    req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
-  }
-  next();
-});
+if (process.env.VERCEL) {
+  app.use((req: Request, _res: Response, next) => {
+    if (req.originalUrl && (req.url === '/api/index.js' || req.url === '/api' || !req.url.startsWith('/api'))) {
+      req.url = req.originalUrl;
+    }
+    if (req.url && !req.url.startsWith('/api') && !req.url.startsWith('/uploads')) {
+      req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
+    }
+    next();
+  });
+}
 
 // 1. HTTP Security Headers
 app.use(securityHeadersMiddleware);
@@ -69,12 +71,15 @@ app.use(['/api/services', '/services'], servicesRouter);
 app.use(['/api/prices', '/prices'], pricesRouter);
 app.use(['/api/audit', '/audit'], auditRouter);
 
-// 6. 404 handler for unmatched API routes
-app.use('*', (req: Request, res: Response) => {
-  res.status(404).json({
-    success: false,
-    error: `Endpoint API introuvable : ${req.method} ${req.originalUrl || req.url}`,
-  });
+// 6. 404 handler ONLY for unmatched API routes
+app.use((req: Request, res: Response, next) => {
+  if (req.originalUrl?.startsWith('/api') || req.url?.startsWith('/api')) {
+    return res.status(404).json({
+      success: false,
+      error: `Endpoint API introuvable : ${req.method} ${req.originalUrl || req.url}`,
+    });
+  }
+  next();
 });
 
 // 7. Global Error Handler
