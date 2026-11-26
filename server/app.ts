@@ -1,4 +1,6 @@
 import express, { Request, Response } from 'express';
+import path from 'path';
+import fs from 'fs';
 import cookieParser from 'cookie-parser';
 import { securityHeadersMiddleware } from './middleware/securityHeaders';
 import { csrfProtection } from './middleware/csrfProtection';
@@ -23,20 +25,6 @@ export const app = express();
 
 // Configure Trust Proxy (Essential for Vercel and reverse proxies)
 app.set('trust proxy', 1);
-
-// Normalize URL ONLY for Vercel Serverless Function rewrites:
-// Under Vercel rewrites, req.url may be set to /api/index.js or /api while req.originalUrl retains /api/portfolio
-if (process.env.VERCEL) {
-  app.use((req: Request, _res: Response, next) => {
-    if (req.originalUrl && (req.url === '/api/index.js' || req.url === '/api' || !req.url.startsWith('/api'))) {
-      req.url = req.originalUrl;
-    }
-    if (req.url && !req.url.startsWith('/api') && !req.url.startsWith('/uploads')) {
-      req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
-    }
-    next();
-  });
-}
 
 // 1. HTTP Security Headers
 app.use(securityHeadersMiddleware);
@@ -71,18 +59,57 @@ app.use(['/api/services', '/services'], servicesRouter);
 app.use(['/api/prices', '/prices'], pricesRouter);
 app.use(['/api/audit', '/audit'], auditRouter);
 
-// 6. 404 handler ONLY for unmatched API routes
-app.use((req: Request, res: Response, next) => {
-  if (req.originalUrl?.startsWith('/api') || req.url?.startsWith('/api')) {
-    return res.status(404).json({
-      success: false,
-      error: `Endpoint API introuvable : ${req.method} ${req.originalUrl || req.url}`,
-    });
-  }
-  next();
+// 6. 404 handler STRICTLY for unmatched API routes (NEVER intercepts frontend /)
+app.use(['/api', '/api/*'], (req: Request, res: Response) => {
+  res.status(404).json({
+    success: false,
+    error: `Endpoint API introuvable : ${req.method} ${req.originalUrl || req.url}`,
+  });
 });
 
-// 7. Global Error Handler
+// 7. Static Frontend & SPA Fallback (for production / Hostinger / standalone mode)
+const currentDir = typeof __dirname !== 'undefined' ? __dirname : process.cwd();
+const candidateDistPaths = [
+  path.join(currentDir, '..', 'dist'),
+  path.join(currentDir, 'dist'),
+  path.join(process.cwd(), 'dist'),
+  path.join(process.cwd(), 'public_html'),
+  path.join(process.cwd(), 'public_html', 'dist'),
+  process.cwd(),
+];
+
+const foundDistPath = candidateDistPaths.find((p) => {
+  try {
+    return fs.existsSync(path.join(p, 'index.html'));
+  } catch {
+    return false;
+  }
+});
+
+if (foundDistPath) {
+  // Serve static assets from dist (JS, CSS, logos, favicon, robots.txt, sitemap.xml)
+  app.use(express.static(foundDistPath));
+
+  // Serve static uploads
+  const uploadsDir = path.resolve(process.cwd(), 'uploads');
+  if (fs.existsSync(uploadsDir)) {
+    app.use('/uploads', express.static(uploadsDir));
+  }
+
+  // SPA fallback: any client-side route serves index.html
+  app.get('*', (req: Request, res: Response, next) => {
+    if (req.originalUrl?.startsWith('/api') || req.url?.startsWith('/api')) {
+      return next();
+    }
+    const indexPath = path.join(foundDistPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      return res.sendFile(indexPath);
+    }
+    next();
+  });
+}
+
+// 8. Global Error Handler
 app.use(globalErrorHandler);
 
 export default app;

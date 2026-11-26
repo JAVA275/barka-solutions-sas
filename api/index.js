@@ -1,5 +1,7 @@
 // server/app.ts
 import express from "express";
+import path7 from "path";
+import fs7 from "fs";
 import cookieParser from "cookie-parser";
 
 // server/middleware/securityHeaders.ts
@@ -6872,17 +6874,6 @@ auditRouter.get("/:id", (req, res) => {
 initUploadDirectories();
 var app = express();
 app.set("trust proxy", 1);
-if (process.env.VERCEL) {
-  app.use((req, _res, next) => {
-    if (req.originalUrl && (req.url === "/api/index.js" || req.url === "/api" || !req.url.startsWith("/api"))) {
-      req.url = req.originalUrl;
-    }
-    if (req.url && !req.url.startsWith("/api") && !req.url.startsWith("/uploads")) {
-      req.url = "/api" + (req.url.startsWith("/") ? req.url : "/" + req.url);
-    }
-    next();
-  });
-}
 app.use(securityHeadersMiddleware);
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
@@ -6905,15 +6896,45 @@ app.use(["/api/portfolio", "/portfolio"], portfolioRouter);
 app.use(["/api/services", "/services"], servicesRouter);
 app.use(["/api/prices", "/prices"], pricesRouter);
 app.use(["/api/audit", "/audit"], auditRouter);
-app.use((req, res, next) => {
-  if (req.originalUrl?.startsWith("/api") || req.url?.startsWith("/api")) {
-    return res.status(404).json({
-      success: false,
-      error: `Endpoint API introuvable : ${req.method} ${req.originalUrl || req.url}`
-    });
-  }
-  next();
+app.use(["/api", "/api/*"], (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: `Endpoint API introuvable : ${req.method} ${req.originalUrl || req.url}`
+  });
 });
+var currentDir = typeof __dirname !== "undefined" ? __dirname : process.cwd();
+var candidateDistPaths = [
+  path7.join(currentDir, "..", "dist"),
+  path7.join(currentDir, "dist"),
+  path7.join(process.cwd(), "dist"),
+  path7.join(process.cwd(), "public_html"),
+  path7.join(process.cwd(), "public_html", "dist"),
+  process.cwd()
+];
+var foundDistPath = candidateDistPaths.find((p) => {
+  try {
+    return fs7.existsSync(path7.join(p, "index.html"));
+  } catch {
+    return false;
+  }
+});
+if (foundDistPath) {
+  app.use(express.static(foundDistPath));
+  const uploadsDir = path7.resolve(process.cwd(), "uploads");
+  if (fs7.existsSync(uploadsDir)) {
+    app.use("/uploads", express.static(uploadsDir));
+  }
+  app.get("*", (req, res, next) => {
+    if (req.originalUrl?.startsWith("/api") || req.url?.startsWith("/api")) {
+      return next();
+    }
+    const indexPath = path7.join(foundDistPath, "index.html");
+    if (fs7.existsSync(indexPath)) {
+      return res.sendFile(indexPath);
+    }
+    next();
+  });
+}
 app.use(globalErrorHandler);
 
 // server/serverless.ts

@@ -35,9 +35,13 @@ New-Item -ItemType File -Path (Join-Path $staging "uploads\portfolio\.gitkeep") 
 New-Item -ItemType File -Path (Join-Path $staging "uploads\quotes\.gitkeep") -Force | Out-Null
 
 # 5. Copier les fichiers racines essentiels
-Write-Host "  -> Copie de package.json, ecosystem.config.cjs et guides..."
+Write-Host "  -> Copie de package.json, ecosystem.config.cjs, serveurs racines et guides..."
 Copy-Item -Path "package.json" -Destination $staging
 Copy-Item -Path "ecosystem.config.cjs" -Destination $staging
+Copy-Item -Path "server.js" -Destination $staging
+Copy-Item -Path "server.cjs" -Destination $staging
+Copy-Item -Path "index.js" -Destination $staging
+Copy-Item -Path "index.cjs" -Destination $staging
 Copy-Item -Path "DEPLOIEMENT_HOSTINGER.md" -Destination $staging
 
 # 6. Créer .env pour Hostinger avec variables requises
