@@ -20,7 +20,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { TabType, PortfolioItem } from '../types';
+import { TabType, PortfolioItem, CompanySettings, HeroPublication } from '../types';
 import { AnimatedCounter } from './AnimatedCounter';
 import { PORTFOLIO_DATA } from '../data/mockData';
 import { apiService } from '../services/api';
@@ -32,19 +32,46 @@ interface HomeScreenProps {
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onSelectTab, onOpenLightbox }) => {
-  // 1. Dynamic Hero Image (configurable via AdminDashboard -> Paramètres)
-  const [heroImage, setHeroImage] = useState<string>(() => {
+  // 1. Company Settings & Dynamic Hero Image / Scheduled Hero Publications
+  const [companySettings, setCompanySettings] = useState<CompanySettings>(() => {
     try {
       const stored = localStorage.getItem('barka_company_settings');
       if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.hero_image) return parsed.hero_image;
+        return { ...COMPANY_SETTINGS, ...JSON.parse(stored) };
       }
     } catch {
       // ignore
     }
-    return COMPANY_SETTINGS.hero_image || 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=1400&q=85';
+    return COMPANY_SETTINGS;
   });
+
+  // Helper to determine the currently active scheduled hero publication (if any)
+  const getActiveScheduledHero = (settings: CompanySettings): HeroPublication | null => {
+    const pubs = settings.hero_publications;
+    if (!pubs || !Array.isArray(pubs) || pubs.length === 0) return null;
+    const nowMs = Date.now();
+    const valid = pubs.filter((pub) => {
+      if (!pub || !pub.active || !pub.image) return false;
+      const startMs = new Date(pub.scheduled_start).getTime();
+      if (isNaN(startMs) || startMs > nowMs) return false;
+      if (pub.scheduled_end) {
+        const endMs = new Date(pub.scheduled_end).getTime();
+        if (!isNaN(endMs) && endMs < nowMs) return false;
+      }
+      return true;
+    });
+    if (valid.length === 0) return null;
+    // Prioritize the most recently scheduled start
+    valid.sort((a, b) => new Date(b.scheduled_start).getTime() - new Date(a.scheduled_start).getTime());
+    return valid[0];
+  };
+
+  const activeScheduledHero = getActiveScheduledHero(companySettings);
+  const displayedHeroImage =
+    activeScheduledHero?.image ||
+    companySettings.hero_image ||
+    COMPANY_SETTINGS.hero_image ||
+    'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=1400&q=85';
 
   // 2. Dynamic Showcase Portfolio items (top 4 active items reflecting admin additions and edits)
   const [showcaseProjects, setShowcaseProjects] = useState<PortfolioItem[]>(() => {
@@ -121,8 +148,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onSelectTab, onOpenLight
   const refreshCompanySettings = async () => {
     try {
       const res = await apiService.getCompanyInfo();
-      if (res.success && res.data?.hero_image) {
-        setHeroImage(res.data.hero_image);
+      if (res.success && res.data) {
+        setCompanySettings((prev) => ({ ...prev, ...res.data }));
       }
     } catch {
       // ignore
@@ -138,9 +165,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onSelectTab, onOpenLight
         const stored = localStorage.getItem('barka_company_settings');
         if (stored) {
           const parsed = JSON.parse(stored);
-          if (parsed.hero_image) {
-            setHeroImage(parsed.hero_image);
-          }
+          setCompanySettings((prev) => ({ ...prev, ...parsed }));
         }
       } catch {
         // ignore
@@ -151,12 +176,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onSelectTab, onOpenLight
       refreshPortfolioData();
     };
 
+    // Timer every 30 seconds to automatically trigger/expire scheduled hero publications on time
+    const scheduleInterval = setInterval(() => {
+      setCompanySettings((prev) => ({ ...prev }));
+    }, 30000);
+
     window.addEventListener('barka_company_settings_updated', handleSettingsUpdate);
     window.addEventListener('barka_portfolio_updated', handlePortfolioUpdate);
     window.addEventListener('storage', handleSettingsUpdate);
     window.addEventListener('storage', handlePortfolioUpdate);
 
     return () => {
+      clearInterval(scheduleInterval);
       window.removeEventListener('barka_company_settings_updated', handleSettingsUpdate);
       window.removeEventListener('barka_portfolio_updated', handlePortfolioUpdate);
       window.removeEventListener('storage', handleSettingsUpdate);
@@ -216,12 +247,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onSelectTab, onOpenLight
           {/* Background Printer Photo on Right with Zoom Reveal */}
           <div className="absolute right-0 top-0 bottom-0 w-full lg:w-[60%] h-full z-0 overflow-hidden">
             <motion.img
-              key={heroImage}
+              key={displayedHeroImage}
               initial={{ scale: 1.18, opacity: 0 }}
               animate={{ scale: 1.05, opacity: 1 }}
               transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-              src={heroImage || COMPANY_SETTINGS.hero_image}
-              alt="Bannière d'accueil - Barka Solutions S.A.S"
+              src={displayedHeroImage}
+              alt={activeScheduledHero?.title || "Bannière d'accueil - Barka Solutions S.A.S"}
               className="w-full h-full object-cover object-center"
             />
             {/* Gradient overlays for smooth blending */}
@@ -269,48 +300,85 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onSelectTab, onOpenLight
 
           {/* Left Hero Content with Fade-Up & Staggered Reveal */}
           <div className="relative z-20 px-5 sm:px-8 lg:px-12 py-10 sm:py-16 lg:py-20 max-w-2xl text-left">
-            <motion.h1
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-              className="text-3xl sm:text-4xl lg:text-[48px] font-black tracking-tight leading-[1.14]"
-              style={{ fontFamily: 'Outfit, sans-serif' }}
-            >
-              Votre partenaire
-              <br />
-              pour une impression
-              <br />
-              <span className="text-[#ffd000] relative inline-block">
-                de qualité professionnelle
-                {/* Yellow wave underline accent */}
-                <svg
-                  className="absolute -bottom-2 left-0 w-full h-3 text-[#ffd000]"
-                  viewBox="0 0 340 14"
-                  fill="none"
-                  preserveAspectRatio="none"
-                >
-                  <path
-                    d="M 2 8 Q 170 14 338 6"
-                    stroke="currentColor"
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </span>
-            </motion.h1>
+            {/* Optional badge when a scheduled campaign is active */}
+            {activeScheduledHero?.badge && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#ffd000] text-slate-950 text-xs font-black uppercase tracking-wider mb-4 shadow-md shadow-amber-500/20"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{activeScheduledHero.badge}</span>
+              </motion.div>
+            )}
 
-            <motion.p
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.18, ease: [0.16, 1, 0.3, 1] }}
-              className="mt-6 text-xs sm:text-sm lg:text-base text-slate-200 font-medium leading-relaxed max-w-lg"
-            >
-              Flyers, affiches, brochures, cartes de visite, dépliants...
-              <br />
-              Donnez vie à vos idées avec une impression moderne,
-              <br />
-              rapide et sur tous supports.
-            </motion.p>
+            {activeScheduledHero?.title ? (
+              <motion.h1
+                key={activeScheduledHero.id || 'scheduled-hero-title'}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                className="text-3xl sm:text-4xl lg:text-[48px] font-black tracking-tight leading-[1.14] text-white"
+                style={{ fontFamily: 'Outfit, sans-serif' }}
+              >
+                {activeScheduledHero.title}
+              </motion.h1>
+            ) : (
+              <motion.h1
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                className="text-3xl sm:text-4xl lg:text-[48px] font-black tracking-tight leading-[1.14]"
+                style={{ fontFamily: 'Outfit, sans-serif' }}
+              >
+                Votre partenaire
+                <br />
+                pour une impression
+                <br />
+                <span className="text-[#ffd000] relative inline-block">
+                  de qualité professionnelle
+                  {/* Yellow wave underline accent */}
+                  <svg
+                    className="absolute -bottom-2 left-0 w-full h-3 text-[#ffd000]"
+                    viewBox="0 0 340 14"
+                    fill="none"
+                    preserveAspectRatio="none"
+                  >
+                    <path
+                      d="M 2 8 Q 170 14 338 6"
+                      stroke="currentColor"
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </span>
+              </motion.h1>
+            )}
+
+            {activeScheduledHero?.subtitle ? (
+              <motion.p
+                key={activeScheduledHero.id || 'scheduled-hero-sub'}
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                className="mt-6 text-xs sm:text-sm lg:text-base text-slate-200 font-medium leading-relaxed max-w-lg"
+              >
+                {activeScheduledHero.subtitle}
+              </motion.p>
+            ) : (
+              <motion.p
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                className="mt-6 text-xs sm:text-sm lg:text-base text-slate-200 font-medium leading-relaxed max-w-lg"
+              >
+                Flyers, affiches, brochures, cartes de visite, dépliants...
+                <br />
+                Donnez vie à vos idées avec une impression moderne,
+                <br />
+                rapide et sur tous supports.
+              </motion.p>
+            )}
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -321,11 +389,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onSelectTab, onOpenLight
               <motion.button
                 whileHover={{ scale: 1.04, y: -2 }}
                 whileTap={{ scale: 0.96 }}
-                onClick={() => onSelectTab('services')}
+                onClick={() => onSelectTab((activeScheduledHero?.linkTab as TabType) || 'services')}
                 id="hero-btn-decouvrir"
                 className="inline-flex items-center gap-2.5 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full bg-[#ffd000] hover:bg-[#ffc400] text-slate-950 font-black text-xs sm:text-sm tracking-wide shadow-lg shadow-amber-500/25 transition-all cursor-pointer"
               >
-                <span>Découvrir nos services</span>
+                <span>{activeScheduledHero?.linkTab === 'devis' ? 'Passer commande' : 'Découvrir nos services'}</span>
                 <ChevronRight className="w-4 h-4 stroke-[3]" />
               </motion.button>
 

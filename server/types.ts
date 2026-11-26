@@ -14,6 +14,19 @@ export interface User {
   updatedAt: string;
 }
 
+export interface HeroPublication {
+  id: string;
+  title?: string;
+  subtitle?: string;
+  badge?: string;
+  image: string;
+  scheduled_start: string; // "YYYY-MM-DDTHH:mm" or ISO string
+  scheduled_end?: string;   // Optional "YYYY-MM-DDTHH:mm" or ISO string
+  active: boolean;
+  linkTab?: string;
+  createdAt?: string;
+}
+
 export interface CompanySettings {
   company_name: string;
   legal_name: string;
@@ -33,6 +46,7 @@ export interface CompanySettings {
   hero_image?: string;
   hero_title?: string;
   hero_subtitle?: string;
+  hero_publications?: HeroPublication[];
   opening_hours: {
     weekday: string;
     saturday: string;

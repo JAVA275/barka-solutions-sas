@@ -46,6 +46,7 @@ import {
   Share2,
   Maximize2,
   ZoomIn,
+  Calendar,
 } from 'lucide-react';
 import {
   AuthUser,
@@ -54,6 +55,7 @@ import {
   ContactMessage,
   ServerStats,
   CompanySettings,
+  HeroPublication,
   PortfolioItem,
   PortfolioCategory,
   QuoteStatus,
@@ -184,6 +186,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
   const [isUploadingHeroImage, setIsUploadingHeroImage] = useState<boolean>(false);
   const [previewImageModal, setPreviewImageModal] = useState<{ src: string; title: string } | null>(null);
+
+  // Scheduled Hero Publications State
+  const [showHeroModal, setShowHeroModal] = useState<boolean>(false);
+  const [editingHeroPub, setEditingHeroPub] = useState<HeroPublication | null>(null);
+  const [isUploadingHeroFormImage, setIsUploadingHeroFormImage] = useState<boolean>(false);
+  const [heroForm, setHeroForm] = useState<{
+    title: string;
+    subtitle: string;
+    badge: string;
+    image: string;
+    scheduled_start: string;
+    scheduled_end: string;
+    active: boolean;
+    linkTab: string;
+  }>({
+    title: '',
+    subtitle: '',
+    badge: 'Événement',
+    image: '',
+    scheduled_start: '',
+    scheduled_end: '',
+    active: true,
+    linkTab: 'devis',
+  });
 
   // Portfolio Form State
   const [portfolioForm, setPortfolioForm] = useState<{
@@ -836,6 +862,247 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setIsUploadingHeroImage(false);
     };
     reader.readAsDataURL(file);
+  };
+
+  // ================= PROGRAMMATION DES PUBLICATIONS HERO (DATE & HEURE) =================
+  const handleOpenAddHeroPub = () => {
+    setEditingHeroPub(null);
+    const now = new Date();
+    const localIsoNow = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    const nextWeek = new Date(now.getTime() + 7 * 24 * 3600 * 1000 - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+
+    setHeroForm({
+      title: '',
+      subtitle: '',
+      badge: 'Événement',
+      image: '',
+      scheduled_start: localIsoNow,
+      scheduled_end: nextWeek,
+      active: true,
+      linkTab: 'devis',
+    });
+    setShowHeroModal(true);
+  };
+
+  const handleOpenEditHeroPub = (pub: HeroPublication) => {
+    setEditingHeroPub(pub);
+    setHeroForm({
+      title: pub.title || '',
+      subtitle: pub.subtitle || '',
+      badge: pub.badge || '',
+      image: pub.image,
+      scheduled_start: pub.scheduled_start ? pub.scheduled_start.slice(0, 16) : '',
+      scheduled_end: pub.scheduled_end ? pub.scheduled_end.slice(0, 16) : '',
+      active: pub.active !== false,
+      linkTab: (pub.linkTab as string) || 'devis',
+    });
+    setShowHeroModal(true);
+  };
+
+  const handleHeroFormImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+
+    setIsUploadingHeroFormImage(true);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const maxDim = 1400;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL('image/jpeg', 0.85);
+          setHeroForm((prev) => ({ ...prev, image: compressed }));
+        } else {
+          setHeroForm((prev) => ({ ...prev, image: ev.target?.result as string }));
+        }
+        setIsUploadingHeroFormImage(false);
+      };
+      img.onerror = () => {
+        setHeroForm((prev) => ({ ...prev, image: ev.target?.result as string }));
+        setIsUploadingHeroFormImage(false);
+      };
+      img.src = ev.target?.result as string;
+    };
+    reader.onerror = () => {
+      setIsUploadingHeroFormImage(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveHeroPublication = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!heroForm.image || !heroForm.scheduled_start) {
+      alert("Veuillez renseigner au minimum l'image et la date/heure de début.");
+      return;
+    }
+
+    const currentPubs = companySettings.hero_publications || [];
+    let updatedPubs: HeroPublication[];
+
+    if (editingHeroPub) {
+      updatedPubs = currentPubs.map((p) =>
+        p.id === editingHeroPub.id
+          ? {
+              ...p,
+              title: heroForm.title,
+              subtitle: heroForm.subtitle,
+              badge: heroForm.badge,
+              image: heroForm.image,
+              scheduled_start: heroForm.scheduled_start,
+              scheduled_end: heroForm.scheduled_end || undefined,
+              active: heroForm.active,
+              linkTab: heroForm.linkTab,
+            }
+          : p
+      );
+    } else {
+      const newPub: HeroPublication = {
+        id: `hero-pub-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        title: heroForm.title,
+        subtitle: heroForm.subtitle,
+        badge: heroForm.badge,
+        image: heroForm.image,
+        scheduled_start: heroForm.scheduled_start,
+        scheduled_end: heroForm.scheduled_end || undefined,
+        active: heroForm.active,
+        linkTab: heroForm.linkTab,
+        createdAt: new Date().toISOString(),
+      };
+      updatedPubs = [newPub, ...currentPubs];
+    }
+
+    const updatedSettings: CompanySettings = {
+      ...companySettings,
+      hero_publications: updatedPubs,
+    };
+
+    setCompanySettings(updatedSettings);
+    try {
+      localStorage.setItem('barka_company_settings', JSON.stringify(updatedSettings));
+      window.dispatchEvent(new Event('barka_company_settings_updated'));
+    } catch (err) {
+      console.warn('Erreur stockage local hero publication:', err);
+    }
+
+    setShowHeroModal(false);
+
+    try {
+      const res = await apiService.updateCompanyInfo(updatedSettings);
+      if (res.success && res.data) {
+        setCompanySettings(res.data);
+        localStorage.setItem('barka_company_settings', JSON.stringify(res.data));
+        window.dispatchEvent(new Event('barka_company_settings_updated'));
+        setSaveMessage('Publication Hero enregistrée et programmée avec succès.');
+      } else {
+        setSaveMessage('Publication enregistrée localement.');
+      }
+    } catch {
+      setSaveMessage('Publication enregistrée localement.');
+    }
+    setTimeout(() => setSaveMessage(null), 3000);
+  };
+
+  const handleDeleteHeroPublication = async (id: string) => {
+    if (!confirm('Confirmer la suppression de cette publication programmée ?')) return;
+    const currentPubs = companySettings.hero_publications || [];
+    const updatedPubs = currentPubs.filter((p) => p.id !== id);
+    const updatedSettings: CompanySettings = {
+      ...companySettings,
+      hero_publications: updatedPubs,
+    };
+
+    setCompanySettings(updatedSettings);
+    try {
+      localStorage.setItem('barka_company_settings', JSON.stringify(updatedSettings));
+      window.dispatchEvent(new Event('barka_company_settings_updated'));
+    } catch (err) {
+      console.warn('Erreur stockage local:', err);
+    }
+
+    try {
+      await apiService.updateCompanyInfo(updatedSettings);
+    } catch (err) {
+      console.warn('Erreur API suppression hero publication:', err);
+    }
+    setSaveMessage('Publication programmée supprimée.');
+    setTimeout(() => setSaveMessage(null), 3000);
+  };
+
+  const handleToggleHeroPubActive = async (id: string) => {
+    const currentPubs = companySettings.hero_publications || [];
+    const updatedPubs = currentPubs.map((p) => (p.id === id ? { ...p, active: !p.active } : p));
+    const updatedSettings: CompanySettings = {
+      ...companySettings,
+      hero_publications: updatedPubs,
+    };
+
+    setCompanySettings(updatedSettings);
+    try {
+      localStorage.setItem('barka_company_settings', JSON.stringify(updatedSettings));
+      window.dispatchEvent(new Event('barka_company_settings_updated'));
+    } catch (err) {
+      console.warn('Erreur stockage local:', err);
+    }
+
+    try {
+      await apiService.updateCompanyInfo(updatedSettings);
+    } catch (err) {
+      console.warn('Erreur API toggle active hero publication:', err);
+    }
+  };
+
+  const getHeroPublicationStatus = (pub: HeroPublication) => {
+    if (!pub.active) {
+      return {
+        status: 'DESACTIVE',
+        label: 'Désactivée',
+        badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
+        dotClass: 'bg-rose-500',
+      };
+    }
+    const nowMs = Date.now();
+    const startMs = new Date(pub.scheduled_start).getTime();
+    const endMs = pub.scheduled_end ? new Date(pub.scheduled_end).getTime() : null;
+
+    if (startMs > nowMs) {
+      return {
+        status: 'PROGRAMME',
+        label: 'Programmée (À venir)',
+        badgeClass: 'bg-amber-50 text-amber-700 border-amber-300 font-bold',
+        dotClass: 'bg-amber-500',
+      };
+    }
+    if (endMs && endMs < nowMs) {
+      return {
+        status: 'EXPIRE',
+        label: 'Terminée / Expirée',
+        badgeClass: 'bg-slate-100 text-slate-600 border-slate-300',
+        dotClass: 'bg-slate-400',
+      };
+    }
+    return {
+      status: 'EN_DIRECT',
+      label: 'En direct (Visible actuellement)',
+      badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-300 font-black',
+      dotClass: 'bg-emerald-500',
+    };
   };
 
   const handleTogglePortfolioActive = async (item: PortfolioItem) => {
@@ -2505,6 +2772,144 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                   </div>
                 </div>
+
+                {/* Section: Programmation des Publications Hero (Date, Heure, Événements) */}
+                <div className="md:col-span-2 pt-6 border-t border-slate-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                    <div>
+                      <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-blue-900" />
+                        Programmation des Publications Hero (Date & Heure)
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Planifiez l'affichage temporaire d'affiches de concerts, événements ou promotions avec dates et heures de début et fin.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleOpenAddHeroPub}
+                      className="inline-flex items-center gap-2 px-3.5 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-bold transition shadow-sm self-start sm:self-auto cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Programmer une publication</span>
+                    </button>
+                  </div>
+
+                  {/* List of Scheduled Publications */}
+                  <div className="space-y-3">
+                    {(!companySettings.hero_publications || companySettings.hero_publications.length === 0) ? (
+                      <div className="p-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center space-y-2">
+                        <Clock className="w-8 h-8 text-slate-300 mx-auto" />
+                        <p className="text-xs font-semibold text-slate-600">
+                          Aucune publication Hero n'est programmée pour le moment.
+                        </p>
+                        <p className="text-[11px] text-slate-400 max-w-md mx-auto">
+                          Cliquez sur le bouton ci-dessus pour planifier une affiche (par ex. pour un concert ce week-end ou une promo). La page d'accueil basculera automatiquement sur l'affiche durant la plage horaire programmée.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-3">
+                        {companySettings.hero_publications.map((pub) => {
+                          const statusInfo = getHeroPublicationStatus(pub);
+                          return (
+                            <div
+                              key={pub.id}
+                              className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs hover:shadow-md transition flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+                            >
+                              <div className="flex items-center gap-4 min-w-0">
+                                {/* Miniature */}
+                                <div
+                                  onClick={() => setPreviewImageModal({ src: pub.image, title: pub.title || 'Publication Hero' })}
+                                  className="w-20 h-14 rounded-lg bg-slate-900 overflow-hidden relative flex-shrink-0 cursor-zoom-in border border-slate-200 group"
+                                  title="Cliquer pour agrandir"
+                                >
+                                  <img
+                                    src={pub.image}
+                                    alt={pub.title || 'Hero Pub'}
+                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                                  />
+                                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                    <ZoomIn className="w-4 h-4" />
+                                  </div>
+                                </div>
+
+                                {/* Détails */}
+                                <div className="min-w-0 space-y-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                                      {pub.title || 'Publication Hero sans titre'}
+                                    </h4>
+                                    {pub.badge && (
+                                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">
+                                        {pub.badge}
+                                      </span>
+                                    )}
+                                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] border ${statusInfo.badgeClass}`}>
+                                      <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dotClass}`} />
+                                      {statusInfo.label}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-3 text-[11px] text-slate-500 flex-wrap">
+                                    <span className="flex items-center gap-1">
+                                      <Calendar className="w-3 h-3 text-slate-400" />
+                                      <span>Début : <strong>{new Date(pub.scheduled_start).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</strong></span>
+                                    </span>
+                                    {pub.scheduled_end ? (
+                                      <span className="flex items-center gap-1">
+                                        <Clock className="w-3 h-3 text-slate-400" />
+                                        <span>Fin : <strong>{new Date(pub.scheduled_end).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</strong></span>
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-400 italic">Affichage continu tant qu'actif</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Actions */}
+                              <div className="flex items-center gap-2 self-end md:self-center flex-shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleHeroPubActive(pub.id)}
+                                  className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                                    pub.active
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                      : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                                  }`}
+                                  title={pub.active ? 'Désactiver' : 'Activer'}
+                                >
+                                  {pub.active ? 'Actif' : 'Désactivé'}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditHeroPub(pub)}
+                                  className="p-1.5 text-blue-700 hover:bg-blue-50 rounded-lg text-xs font-bold flex items-center gap-1 border border-slate-200 cursor-pointer transition"
+                                  title="Modifier la programmation"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                  <span className="hidden sm:inline">Modifier</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteHeroPublication(pub.id)}
+                                  className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-bold flex items-center gap-1 border border-rose-200 cursor-pointer transition"
+                                  title="Supprimer la programmation"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span className="hidden sm:inline">Supprimer</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="pt-4 border-t border-slate-100 flex justify-end">
@@ -2752,6 +3157,206 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* ================= TAB: AUDIT LOGS (ADMIN ONLY) ================= */}
         {activeTab === 'audit' && isAdmin && (
           <AdminAuditTab currentUser={currentUser} />
+        )}
+
+        {/* ================= MODAL: PROGRAMMATION PUBLICATION HERO (DATE & HEURE) ================= */}
+        {showHeroModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl border border-slate-100 my-8">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-blue-900" />
+                  <h3 className="text-base font-bold text-slate-900">
+                    {editingHeroPub ? 'Modifier la publication programmée' : 'Programmer une publication Hero'}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowHeroModal(false)}
+                  className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveHeroPublication} className="space-y-4 text-xs">
+                {/* Titre / Nom de la campagne */}
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">
+                    Nom / Titre de la campagne
+                  </label>
+                  <input
+                    type="text"
+                    value={heroForm.title}
+                    onChange={(e) => setHeroForm({ ...heroForm, title: e.target.value })}
+                    placeholder="Ex: Affiche de concert Live - Ngondo"
+                    className="w-full p-2.5 border border-slate-200 rounded-xl font-bold text-slate-900"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-0.5 block">
+                    Optionnel. Si renseigné, remplace temporairement le titre principal de la page d'accueil pendant la diffusion.
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Badge d'accroche */}
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">
+                      Badge d'accroche
+                    </label>
+                    <input
+                      type="text"
+                      value={heroForm.badge}
+                      onChange={(e) => setHeroForm({ ...heroForm, badge: e.target.value })}
+                      placeholder="Ex: Événement, Concert, Promo"
+                      className="w-full p-2.5 border border-slate-200 rounded-xl font-semibold"
+                    />
+                  </div>
+
+                  {/* Destination du bouton */}
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">
+                      Bouton d'action
+                    </label>
+                    <select
+                      value={heroForm.linkTab}
+                      onChange={(e) => setHeroForm({ ...heroForm, linkTab: e.target.value })}
+                      className="w-full p-2.5 border border-slate-200 rounded-xl bg-white font-semibold"
+                    >
+                      <option value="devis">Passer commande (Devis)</option>
+                      <option value="services">Découvrir les services</option>
+                      <option value="galerie">Voir le Portfolio</option>
+                      <option value="contact">Contact & Agence</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Date et Heure de Début & Fin */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-blue-50/60 p-3.5 rounded-xl border border-blue-100">
+                  <div>
+                    <label className="block font-bold text-blue-900 uppercase mb-1 flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>Date & Heure de Début *</span>
+                    </label>
+                    <input
+                      type="datetime-local"
+                      required
+                      value={heroForm.scheduled_start}
+                      onChange={(e) => setHeroForm({ ...heroForm, scheduled_start: e.target.value })}
+                      className="w-full p-2 bg-white border border-blue-200 rounded-lg font-bold text-slate-900 text-xs"
+                    />
+                    <span className="text-[10px] text-blue-700 mt-1 block">
+                      Moment où l'affiche s'affiche sur la page d'accueil.
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Date & Heure de Fin (Optionnel)</span>
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={heroForm.scheduled_end}
+                      onChange={(e) => setHeroForm({ ...heroForm, scheduled_end: e.target.value })}
+                      className="w-full p-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-xs"
+                    />
+                    <span className="text-[10px] text-slate-500 mt-1 block">
+                      Retour automatique à l'affiche par défaut après cette date.
+                    </span>
+                  </div>
+                </div>
+
+                {/* Image de la bannière Hero */}
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">
+                    Image / Affiche de la bannière *
+                  </label>
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="inline-flex items-center gap-2 px-3 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-bold cursor-pointer transition shadow-xs">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>{isUploadingHeroFormImage ? 'Compression...' : 'Téléverser une photo (PC / Mobile)'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={isUploadingHeroFormImage}
+                          onChange={handleHeroFormImageFileChange}
+                          className="hidden"
+                        />
+                      </label>
+                      <span className="text-slate-400 text-[11px]">ou collez une URL ci-dessous</span>
+                    </div>
+
+                    <input
+                      type="text"
+                      required
+                      placeholder="https://... ou téléversez ci-dessus"
+                      value={heroForm.image}
+                      onChange={(e) => setHeroForm({ ...heroForm, image: e.target.value })}
+                      className="w-full p-2 border border-slate-200 rounded-xl"
+                    />
+
+                    {heroForm.image && (
+                      <div className="mt-2 relative w-full h-32 rounded-xl overflow-hidden border border-slate-200 bg-slate-900 shadow-inner">
+                        <img
+                          src={heroForm.image}
+                          alt="Prévisualisation"
+                          className="w-full h-full object-cover"
+                        />
+                        <span className="absolute bottom-2 left-2 bg-black/70 text-white text-[10px] px-2 py-0.5 rounded font-bold">
+                          Aperçu de la bannière
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Sous-titre personnalisé */}
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">
+                    Sous-titre / Description (Optionnel)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={heroForm.subtitle}
+                    onChange={(e) => setHeroForm({ ...heroForm, subtitle: e.target.value })}
+                    placeholder="Ex: Rendez-vous ce samedi 28 novembre au Palais des Congrès. Billets disponibles dès maintenant."
+                    className="w-full p-2.5 border border-slate-200 rounded-xl"
+                  />
+                </div>
+
+                {/* Statut actif */}
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="heroFormActive"
+                    checked={heroForm.active}
+                    onChange={(e) => setHeroForm({ ...heroForm, active: e.target.checked })}
+                    className="w-4 h-4 text-blue-900 rounded"
+                  />
+                  <label htmlFor="heroFormActive" className="font-bold text-slate-700 text-xs cursor-pointer">
+                    Activer cette publication selon les dates et heures configurées
+                  </label>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowHeroModal(false)}
+                    className="px-4 py-2 border border-slate-200 rounded-xl font-bold hover:bg-slate-50 cursor-pointer"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold cursor-pointer transition shadow-sm"
+                  >
+                    {editingHeroPub ? 'Mettre à jour la publication' : 'Enregistrer la programmation'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         )}
 
         {/* ================= MODAL: PLEIN ÉCRAN APERÇU INTÉGRAL D'IMAGE ================= */}
