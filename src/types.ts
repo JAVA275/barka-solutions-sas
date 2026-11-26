@@ -34,6 +34,9 @@ export interface CompanySettings {
   email_secondary: string;
   website: string;
   logo: string;
+  hero_image?: string;
+  hero_title?: string;
+  hero_subtitle?: string;
   opening_hours: {
     weekday: string;
     saturday: string;

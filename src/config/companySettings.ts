@@ -16,6 +16,7 @@ export const COMPANY_SETTINGS: CompanySettings = {
   email_secondary: 'direction@barkasolutions.org',
   website: '',
   logo: '/assets/logo-barka.png',
+  hero_image: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=1400&q=85',
   opening_hours: {
     weekday: 'Lundi - Vendredi : 08h00 – 18h00',
     saturday: 'Samedi : 08h00 – 13h00',

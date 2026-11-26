@@ -153,6 +153,7 @@ var DEFAULT_COMPANY_SETTINGS = {
   email_secondary: "direction@barkasolutions.org",
   website: "",
   logo: "/assets/logo-barka.png",
+  hero_image: "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=1400&q=85",
   opening_hours: {
     weekday: "Lundi - Vendredi : 08h00 \u2013 18h00",
     saturday: "Samedi : 08h00 \u2013 13h00",
@@ -5039,6 +5040,9 @@ function updateCompanySettings(req, res, next) {
       "email_support",
       "website",
       "logo",
+      "hero_image",
+      "hero_title",
+      "hero_subtitle",
       "opening_hours_weekday",
       "opening_hours_saturday",
       "opening_hours_sunday",

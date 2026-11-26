@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Zap,
   Award,
@@ -23,6 +23,8 @@ import { motion } from 'motion/react';
 import { TabType, PortfolioItem } from '../types';
 import { AnimatedCounter } from './AnimatedCounter';
 import { PORTFOLIO_DATA } from '../data/mockData';
+import { apiService } from '../services/api';
+import { COMPANY_SETTINGS } from '../config/companySettings';
 
 interface HomeScreenProps {
   onSelectTab: (tab: TabType) => void;
@@ -30,6 +32,137 @@ interface HomeScreenProps {
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onSelectTab, onOpenLightbox }) => {
+  // 1. Dynamic Hero Image (configurable via AdminDashboard -> Paramètres)
+  const [heroImage, setHeroImage] = useState<string>(() => {
+    try {
+      const stored = localStorage.getItem('barka_company_settings');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.hero_image) return parsed.hero_image;
+      }
+    } catch {
+      // ignore
+    }
+    return COMPANY_SETTINGS.hero_image || 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=1400&q=85';
+  });
+
+  // 2. Dynamic Showcase Portfolio items (top 4 active items reflecting admin additions and edits)
+  const [showcaseProjects, setShowcaseProjects] = useState<PortfolioItem[]>(() => {
+    try {
+      const deletedRaw = localStorage.getItem('barka_portfolio_deleted_ids');
+      const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+      const localStored = localStorage.getItem('barka_portfolio_custom_items');
+      if (localStored) {
+        const clientPortfolio = JSON.parse(localStored);
+        if (Array.isArray(clientPortfolio) && clientPortfolio.length > 0) {
+          const validCustom = clientPortfolio.filter((i) => i && i.id && i.active !== false && !deletedIds.has(i.id));
+          const customIds = new Set(validCustom.map((i) => i.id));
+          const combined = [...validCustom, ...PORTFOLIO_DATA.filter((p) => !customIds.has(p.id) && !deletedIds.has(p.id))];
+          return combined.slice(0, 4);
+        }
+      }
+      if (deletedIds.size > 0) {
+        return PORTFOLIO_DATA.filter((p) => !deletedIds.has(p.id)).slice(0, 4);
+      }
+    } catch {
+      // ignore
+    }
+    return PORTFOLIO_DATA.slice(0, 4);
+  });
+
+  const refreshPortfolioData = async () => {
+    try {
+      const res = await apiService.getPortfolio();
+      let mergedItems: PortfolioItem[] = [];
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        mergedItems = [...res.data];
+      } else {
+        mergedItems = [...PORTFOLIO_DATA];
+      }
+
+      try {
+        const deletedRaw = localStorage.getItem('barka_portfolio_deleted_ids');
+        const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+        if (deletedIds.size > 0) {
+          mergedItems = mergedItems.filter((p) => !deletedIds.has(p.id));
+        }
+
+        const localStored = localStorage.getItem('barka_portfolio_custom_items');
+        if (localStored) {
+          const clientPortfolio = JSON.parse(localStored);
+          if (Array.isArray(clientPortfolio)) {
+            for (const cp of clientPortfolio) {
+              if (cp && cp.id && !deletedIds.has(cp.id)) {
+                const existingIdx = mergedItems.findIndex((p) => p.id === cp.id);
+                if (existingIdx >= 0) {
+                  if (cp.active === false) {
+                    mergedItems.splice(existingIdx, 1);
+                  } else {
+                    mergedItems[existingIdx] = { ...mergedItems[existingIdx], ...cp };
+                  }
+                } else if (cp.active !== false) {
+                  mergedItems.unshift(cp);
+                }
+              }
+            }
+          }
+        }
+      } catch {
+        // ignore
+      }
+
+      const activeItems = mergedItems.filter((item) => item.active !== false);
+      setShowcaseProjects(activeItems.slice(0, 4));
+    } catch (err) {
+      console.warn('Erreur rafraîchissement portfolio accueil:', err);
+    }
+  };
+
+  const refreshCompanySettings = async () => {
+    try {
+      const res = await apiService.getCompanyInfo();
+      if (res.success && res.data?.hero_image) {
+        setHeroImage(res.data.hero_image);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    refreshPortfolioData();
+    refreshCompanySettings();
+
+    const handleSettingsUpdate = () => {
+      try {
+        const stored = localStorage.getItem('barka_company_settings');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.hero_image) {
+            setHeroImage(parsed.hero_image);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    const handlePortfolioUpdate = () => {
+      refreshPortfolioData();
+    };
+
+    window.addEventListener('barka_company_settings_updated', handleSettingsUpdate);
+    window.addEventListener('barka_portfolio_updated', handlePortfolioUpdate);
+    window.addEventListener('storage', handleSettingsUpdate);
+    window.addEventListener('storage', handlePortfolioUpdate);
+
+    return () => {
+      window.removeEventListener('barka_company_settings_updated', handleSettingsUpdate);
+      window.removeEventListener('barka_portfolio_updated', handlePortfolioUpdate);
+      window.removeEventListener('storage', handleSettingsUpdate);
+      window.removeEventListener('storage', handlePortfolioUpdate);
+    };
+  }, []);
   const serviceCards = [
     {
       id: 'flyers-depliants',
@@ -75,9 +208,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onSelectTab, onOpenLight
     },
   ];
 
-  // Top 4 showcase portfolio projects for the gallery motion
-  const showcaseProjects = PORTFOLIO_DATA.slice(0, 4);
-
   return (
     <div className="space-y-10 sm:space-y-14 pb-8" id="home-screen-content">
       {/* 1. HERO SECTION WITH CMYK WAVE & CINEMATIC REVEAL (Exact Mockup Match) */}
@@ -86,11 +216,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onSelectTab, onOpenLight
           {/* Background Printer Photo on Right with Zoom Reveal */}
           <div className="absolute right-0 top-0 bottom-0 w-full lg:w-[60%] h-full z-0 overflow-hidden">
             <motion.img
+              key={heroImage}
               initial={{ scale: 1.18, opacity: 0 }}
               animate={{ scale: 1.05, opacity: 1 }}
               transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-              src="https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=1400&q=85"
-              alt="Imprimante industrielle grand format - Imprimerie Pro"
+              src={heroImage || COMPANY_SETTINGS.hero_image}
+              alt="Bannière d'accueil - Barka Solutions S.A.S"
               className="w-full h-full object-cover object-center"
             />
             {/* Gradient overlays for smooth blending */}
